@@ -25,3 +25,4 @@ if names:
     for filename in ("sources.json", "build-list.json", "BUILD-LIST.md"):
         shutil.copyfile(root / filename, recipes / filename)
     shutil.copytree(root / "docs", recipes / "docs", dirs_exist_ok=True)
+    shutil.copytree(root / "patches", recipes / "patches", dirs_exist_ok=True)

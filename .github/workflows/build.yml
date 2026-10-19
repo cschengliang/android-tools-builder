@@ -16,6 +16,7 @@ on:
     paths:
       - .github/workflows/build.yml
       - scripts/**
+      - patches/**
       - sources.json
       - build-list.json
       - BUILD-LIST.md

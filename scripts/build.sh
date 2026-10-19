@@ -43,6 +43,7 @@ export LDFLAGS="-L$PREFIX/lib -Wl,-z,max-page-size=16384 -Wl,--gc-sections"
 export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"
 export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
 export PKG_CONFIG_ALLOW_CROSS=1
+export MAKEFLAGS="${MAKEFLAGS:-} --no-print-directory --silent"
 
 build_crypto() {
   [[ -f "$PREFIX/lib/libssl.a" ]] && return
@@ -174,7 +175,8 @@ build_socat() {
   local src="$ROOT/$(source_path socat)"
   (
     cd "$src"
-    ac_cv_header_resolv_h=no sc_cv_getprotobynumber_r= \
+    ac_cv_header_resolv_h=no sc_cv_getprotobynumber_r= ac_cv_have_c99_snprintf=yes \
+      sc_cv_sys_crdly_shift=9 sc_cv_sys_tabdly_shift=11 sc_cv_sys_csize_shift=4 \
       LDFLAGS="$LDFLAGS -static" LIBS='-ldl -lm' ./configure \
       --host="$HOST" --prefix="$PREFIX" --disable-readline --disable-libwrap \
       --disable-posixmq --enable-openssl --enable-openssl-base="$PREFIX"
@@ -192,13 +194,13 @@ build_aria2() {
   local src="$ROOT/$(source_path aria2)"
   (
     cd "$src"
-    ARIA2_STATIC=yes LDFLAGS="$LDFLAGS -static" LIBS='-ldl -lm' \
+    ARIA2_STATIC=yes LDFLAGS="$LDFLAGS -static -static-libstdc++" LIBS='-ldl -lm' \
       ./configure --host="$HOST" --prefix="$PREFIX" --disable-shared --enable-static \
-      --with-openssl="$PREFIX" --with-libz --without-gnutls --without-libgcrypt \
+      --with-openssl --with-libz --without-gnutls --without-libgcrypt \
       --without-libnettle --without-libgmp --without-libssh2 --without-libcares \
       --without-libxml2 --without-libexpat --without-sqlite3 \
       --disable-metalink --disable-nls --disable-dependency-tracking
-    make -j"$JOBS" LDFLAGS="$LDFLAGS -all-static"
+    make -j"$JOBS" LDFLAGS="$LDFLAGS -all-static -static-libstdc++"
     install -m 755 src/aria2c "$OUT/bin/aria2c"
   )
   cp "$src/COPYING" "$OUT/licenses/aria2.txt"
@@ -235,6 +237,7 @@ build_strace() {
   local src="$ROOT/$(source_path strace)"
   (
     cd "$src"
+    patch -p1 < "$ROOT/patches/strace-android-in-addr.patch"
     CPPFLAGS="$CPPFLAGS -Dfputs_unlocked=fputs" LDFLAGS="$LDFLAGS -static" \
       ./configure --host="$HOST" --prefix="$PREFIX" --enable-mpers=no \
       --enable-stacktrace=no --without-libunwind --without-libdw \
@@ -254,7 +257,10 @@ build_stress_ng() {
     cd "$src"
     # Probe the target headers/libraries, never the runner's optional libraries.
     make -j"$JOBS" STATIC=1 CC="$CC" CXX="$CXX" AR="$AR" \
-      LDFLAGS="$LDFLAGS -static" JOBS="$JOBS"
+      LDFLAGS="$LDFLAGS -static" JOBS="$JOBS" \
+      LIB_ACL= LIB_AIO= LIB_APPARMOR= LIB_BSD= LIB_CRYPT= LIB_EGL= LIB_GBM= \
+      LIB_GLES2= LIB_GMP= LIB_IPSEC_MB= LIB_JPEG= LIB_JUDY= LIB_KMOD= LIB_MD= \
+      LIB_MPFR= LIB_SCTP= LIB_XXHASH= LIB_Z= LIB_LZMA= LIB_FSNOTIFY= LIB_NL= LIB_GENL=
     install -m 755 stress-ng "$OUT/bin/stress-ng"
   )
   cp "$src/COPYING" "$OUT/licenses/stress-ng.txt"
