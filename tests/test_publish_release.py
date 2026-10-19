@@ -49,6 +49,8 @@ class ReleaseValidationTests(unittest.TestCase):
             assets, tools = prepare_assets(download, work / "assets")
             self.assertEqual(tools, {"curl": "test"})
             self.assertIn("licenses-android-arm64.tar.gz", [file.name for file in assets])
+            self.assertIn("cacert.pem", [file.name for file in assets])
+            self.assertEqual((work / "assets/cacert.pem").read_bytes(), (work / "fixture/cacert.pem").read_bytes())
             self.assertEqual((work / "assets/curl-android-arm64").read_bytes(),
                              (work / "fixture/bin/curl").read_bytes())
 

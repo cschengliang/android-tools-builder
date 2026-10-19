@@ -51,6 +51,7 @@ tcpdump 实时抓包和 strace 跟踪其他进程通常需要额外权限，并�
 ```sh
 adb shell mkdir -p /data/local/tmp/tools
 adb push bin/. /data/local/tmp/tools/
+adb push cacert.pem /data/local/tmp/tools/
 adb shell 'chmod 755 /data/local/tmp/tools/*'
 adb shell /data/local/tmp/tools/rg --version
 adb shell /data/local/tmp/tools/stress --version
@@ -71,7 +72,7 @@ adb shell /data/local/tmp/tools/curl --version
 
 curl 包含 HTTPS、HTTP/2、IPv6、代理、gzip 和内置 Mozilla CA；暂不包含 HTTP/3、SSH/SFTP、Brotli、Zstd、国际化域名或 libpsl。ripgrep 使用 Rust 正则引擎，暂不启用可选 PCRE2。CA 为固定日期快照，需要时更新其 URL、日期和校验值；私有 CA 可用 `curl --cacert` 指定。
 
-aria2 包含 HTTP/HTTPS、FTP、BitTorrent 和 JSON-RPC；暂不包含 SFTP、Metalink、XML-RPC 和 c-ares 异步 DNS。HTTPS 下载请显式指定工具包中的证书文件，例如 `aria2c --ca-certificate=/data/local/tmp/tools/cacert.pem https://example.com/file`，私有服务改用自己的 CA；不关闭证书验证。sqlite3 禁用动态扩展加载；iperf3 不启用可选的 OpenSSL 身份认证。
+aria2 包含 HTTP/HTTPS、FTP、BitTorrent 和 JSON-RPC；暂不包含 SFTP、Metalink、XML-RPC 和 c-ares 异步 DNS。HTTPS 下载请显式指定工具包中的证书文件，例如 `aria2c --ca-certificate=/data/local/tmp/tools/cacert.pem https://example.com/file`，私有服务改用自己的 CA；不关闭证书验证。单独下载 aria2c 时，还应下载 Release 附件中的 `cacert.pem`。sqlite3 禁用动态扩展加载；iperf3 不启用可选的 OpenSSL 身份认证。
 
 ## 自动发布
 

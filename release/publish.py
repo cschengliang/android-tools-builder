@@ -84,6 +84,10 @@ def prepare_assets(download, output):
                 notices.add(extracted / name, arcname=name)
     for source in (extracted / "sources").glob("*.tar.*"):
         shutil.copyfile(source, output / source.name.replace(".tar.", "-source.tar.", 1))
+    # Standalone aria2 downloads also need an explicit trusted CA file.
+    for relative, name in (("cacert.pem", "cacert.pem"), ("licenses/CA-NOTICE.txt", "CA-NOTICE.txt")):
+        if (extracted / relative).is_file():
+            shutil.copyfile(extracted / relative, output / name)
     shutil.copyfile(archive, output / archive.name)
     (output / (archive.name + ".sha256")).write_text(f"{expected}  {archive.name}\n")
     assets = sorted(output.iterdir())
@@ -164,6 +168,7 @@ def main():
             f"源码提交：`{run['head_sha']}`。\n\n"
             "下载完整工具包可同时获得使用说明和许可证；也可以直接下载单个 "
             "`*-android-架构` 文件。`licenses-android-架构.tar.gz` 提供对应的许可证、源码版本清单和构建规则；需要分发的对应源码也作为独立附件提供。\n\n"
+            "aria2 的 HTTPS 下载请指定本 Release 的 CA 文件：`aria2c --ca-certificate=/路径/cacert.pem https://example.com/file`。\n\n"
             "复制到 Android 有执行权限的目录后：\n\n"
             "```sh\nchmod 755 curl-android-arm64\n./curl-android-arm64 --version\n```\n\n"
             "用 `sha256sum -c SHA256SUMS` 校验全部附件，或使用工具包对应的 `.sha256` 文件。\n",
