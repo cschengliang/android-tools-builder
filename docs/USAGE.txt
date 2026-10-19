@@ -18,20 +18,44 @@ Tools:
   rg      ripgrep: recursive text/regex search; Unicode and ignore rules.
   stress  Classic CPU, memory, I/O and disk stress tool.
   curl    Network requests; HTTPS, HTTP/2, proxies, IPv6, gzip, embedded CA.
+  jq      JSON processing; bundled Oniguruma regular expressions.
+  iperf3  TCP/UDP network throughput client/server; no optional authentication.
+  zstd    Zstandard compression/decompression; multithreading and dictionaries.
+  sqlite3 SQLite shell; FTS5, RTree, math functions; no dynamic extension loading.
+  socat   TCP/UDP/Unix socket and OpenSSL data relay; no readline.
+  aria2c  HTTP/HTTPS, FTP, BitTorrent, JSON-RPC download client.
+  tcpdump Packet capture and offline pcap analysis; static libpcap.
+  strace  System call/signal tracing; no libdw unwinding or cross-bitness decoding.
+  stress-ng Extended CPU, memory and kernel stress tests; optional libraries omitted.
 
 Examples:
   ./rg --version
   ./stress --version
   ./curl -I https://example.com
+  ./jq '.items[]' data.json
+  ./zstd input.log
+  ./sqlite3 database.db 'SELECT sqlite_version();'
+  ./iperf3 -c SERVER_IP -t 10
+  ./aria2c --ca-certificate=/data/local/tmp/tools/cacert.pem https://example.com/file
+  ./tcpdump -n -r capture.pcap
 
 curl uses a build-time Mozilla CA snapshot. For a private CA, use
 --cacert /path/to/custom-ca.pem or CURL_CA_BUNDLE. Certificate verification
 is enabled by default. HTTP/3, SSH/SFTP, Brotli and Zstd are not included.
 ripgrep uses its default Rust regex engine; optional PCRE2 is not enabled.
+aria2 requires an explicit --ca-certificate path for HTTPS. The package includes
+cacert.pem. Private services need their own CA. Certificate verification stays on.
+aria2 excludes SFTP, Metalink, XML-RPC and c-ares asynchronous DNS.
+
+Live packet capture and tracing other processes usually require additional
+privileges and remain subject to SELinux. stress-ng features depend on the device
+kernel and permissions. QEMU smoke tests do not replace native-device testing;
+strace is tested for startup/version output only, not real ptrace operation.
 
 Verify package contents:
   sha256sum -c SHA256SUMS
 
 licenses/ contains notices and sources.json records source versions and hashes.
-When stress is included, sources/ contains its exact corresponding source archive.
+When copyleft tools are included, sources/ contains the corresponding source
+archives, required dependency inputs, and the build scripts used for this build.
 Build rules are available in the source tag attached to the GitHub Release.

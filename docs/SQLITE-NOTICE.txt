@@ -1,0 +1,6 @@
+SQLite is in the public domain.
+https://sqlite.org/copyright.html
+
+The SQLite amalgamation source begins with its public-domain dedication.
+This build includes the SQLite command-line shell, FTS5, RTree, and math functions.
+Dynamic extension loading is disabled.

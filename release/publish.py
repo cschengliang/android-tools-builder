@@ -82,8 +82,8 @@ def prepare_assets(download, output):
         for name in ("licenses", "sources.json", "USAGE.txt", "cacert.pem", "build-info.json", "BUILD-LIST.md", "sources"):
             if (extracted / name).exists():
                 notices.add(extracted / name, arcname=name)
-    for source in (extracted / "sources").glob("*.tar.gz"):
-        shutil.copyfile(source, output / (source.name.removesuffix(".tar.gz") + "-source.tar.gz"))
+    for source in (extracted / "sources").glob("*.tar.*"):
+        shutil.copyfile(source, output / source.name.replace(".tar.", "-source.tar.", 1))
     shutil.copyfile(archive, output / archive.name)
     (output / (archive.name + ".sha256")).write_text(f"{expected}  {archive.name}\n")
     assets = sorted(output.iterdir())
@@ -160,10 +160,10 @@ def main():
         notes.write_text(
             f"Android 10+ (API 29) 多架构静态命令行工具。\n\n{versions}\n\n"
             f"由 [GitHub Actions 构建 #{run['run_number']}]({run['html_url']}) 从源码编译，"
-            "并通过各架构 ELF、静态链接及 QEMU 功能测试。\n\n"
+            "并通过各架构 ELF、静态链接及 QEMU 冒烟测试。strace 仅验证启动，设备权限相关功能需另行真机验证。\n\n"
             f"源码提交：`{run['head_sha']}`。\n\n"
             "下载完整工具包可同时获得使用说明和许可证；也可以直接下载单个 "
-            "`*-android-架构` 文件。`licenses-android-架构.tar.gz` 提供对应的许可证和源码版本清单；stress 的对应源码也作为独立附件提供。\n\n"
+            "`*-android-架构` 文件。`licenses-android-架构.tar.gz` 提供对应的许可证、源码版本清单和构建规则；需要分发的对应源码也作为独立附件提供。\n\n"
             "复制到 Android 有执行权限的目录后：\n\n"
             "```sh\nchmod 755 curl-android-arm64\n./curl-android-arm64 --version\n```\n\n"
             "用 `sha256sum -c SHA256SUMS` 校验全部附件，或使用工具包对应的 `.sha256` 文件。\n",

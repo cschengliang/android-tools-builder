@@ -6,7 +6,7 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
 ARCH=${ARCH:-arm64}
 API=$(python3 -c 'import json; print(json.load(open("build-list.json"))["android_api"])')
-if [[ $# == 0 ]]; then set -- ripgrep stress curl; fi
+if [[ $# == 0 ]]; then read -r -a defaults <<< "$(python3 -c 'import json; print(" ".join(json.load(open("build-list.json"))["tools"]))')"; set -- "${defaults[@]}"; fi
 python3 scripts/catalog.py plan --tools "$*" --architectures "$ARCH" > /dev/null
 arch_field() { python3 scripts/catalog.py arch --arch "$ARCH" --field "$1"; }
 CLANG_TARGET=$(arch_field clang)
@@ -44,13 +44,11 @@ export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"
 export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
 export PKG_CONFIG_ALLOW_CROSS=1
 
-build_curl() {
-  python3 scripts/prepare-sources.py curl openssl nghttp2 zlib cacert
-  local ssl zlib http2 curlsrc
+build_crypto() {
+  [[ -f "$PREFIX/lib/libssl.a" ]] && return
+  python3 scripts/prepare-sources.py openssl
+  local ssl
   ssl="$ROOT/$(source_path openssl)"
-  zlib="$ROOT/$(source_path zlib)"
-  http2="$ROOT/$(source_path nghttp2)"
-  curlsrc="$ROOT/$(source_path curl)"
   (
     cd "$ssl"
     export CC=clang CXX=clang++
@@ -60,12 +58,30 @@ build_curl() {
     make -j"$JOBS" build_libs
     make install_dev
   )
+  cp "$ssl/LICENSE.txt" "$OUT/licenses/OpenSSL.txt"
+}
+
+build_zlib() {
+  [[ -f "$PREFIX/lib/libz.a" ]] && return
+  python3 scripts/prepare-sources.py zlib
+  local zlib
+  zlib="$ROOT/$(source_path zlib)"
   (
     cd "$zlib"
     ./configure --static --prefix="$PREFIX"
     make -j"$JOBS"
     make install
   )
+  cp "$zlib/LICENSE" "$OUT/licenses/zlib.txt"
+}
+
+build_curl() {
+  python3 scripts/prepare-sources.py curl nghttp2 cacert
+  build_crypto
+  build_zlib
+  local http2 curlsrc
+  http2="$ROOT/$(source_path nghttp2)"
+  curlsrc="$ROOT/$(source_path curl)"
   (
     cd "$http2"
     ./configure --host="$HOST" --prefix="$PREFIX" \
@@ -95,10 +111,153 @@ build_curl() {
     install -m 755 src/curl "$OUT/bin/curl"
   )
   cp "$curlsrc/COPYING" "$OUT/licenses/curl.txt"
-  cp "$ssl/LICENSE.txt" "$OUT/licenses/OpenSSL.txt"
   cp "$http2/COPYING" "$OUT/licenses/nghttp2.txt"
-  cp "$zlib/LICENSE" "$OUT/licenses/zlib.txt"
   cp "$ROOT/.work/downloads/cacert.pem" "$OUT/cacert.pem"
+}
+
+build_jq() {
+  python3 scripts/prepare-sources.py jq
+  local src="$ROOT/$(source_path jq)"
+  (
+    cd "$src"
+    LDFLAGS="$LDFLAGS -static" ./configure --host="$HOST" --prefix="$PREFIX" \
+      --disable-shared --enable-static --with-oniguruma=builtin \
+      --disable-docs --disable-maintainer-mode
+    make -j"$JOBS" LDFLAGS="$LDFLAGS -all-static"
+    install -m 755 jq "$OUT/bin/jq"
+  )
+  cp "$src/COPYING" "$OUT/licenses/jq.txt"
+  cp "$src/vendor/oniguruma/COPYING" "$OUT/licenses/oniguruma.txt"
+}
+
+build_iperf3() {
+  python3 scripts/prepare-sources.py iperf3
+  local src="$ROOT/$(source_path iperf3)"
+  (
+    cd "$src"
+    LDFLAGS="$LDFLAGS -static" ./configure --host="$HOST" --prefix="$PREFIX" \
+      --disable-shared --enable-static --without-openssl
+    make -j"$JOBS" LDFLAGS="$LDFLAGS -all-static"
+    install -m 755 src/iperf3 "$OUT/bin/iperf3"
+  )
+  cp "$src/LICENSE" "$OUT/licenses/iperf3.txt"
+}
+
+build_zstd() {
+  python3 scripts/prepare-sources.py zstd
+  local src="$ROOT/$(source_path zstd)"
+  (
+    cd "$src"
+    make -C programs -j"$JOBS" zstd LDFLAGS="$LDFLAGS -static" \
+      ZSTD_LEGACY_SUPPORT=0 ZSTD_ZLIB_SUPPORT=0 ZSTD_LZMA_SUPPORT=0 ZSTD_LZ4_SUPPORT=0
+    install -m 755 programs/zstd "$OUT/bin/zstd"
+  )
+  cp "$src/LICENSE" "$OUT/licenses/zstd.txt"
+}
+
+build_sqlite3() {
+  python3 scripts/prepare-sources.py sqlite3
+  local src="$ROOT/$(source_path sqlite3)"
+  (
+    cd "$src"
+    "$CC" $CFLAGS $CPPFLAGS -DSQLITE_THREADSAFE=1 -DSQLITE_ENABLE_FTS5 \
+      -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_MATH_FUNCTIONS \
+      -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_OMIT_LOAD_EXTENSION \
+      shell.c sqlite3.c $LDFLAGS -static -ldl -lm -o "$OUT/bin/sqlite3"
+  )
+  cp "$ROOT/docs/SQLITE-NOTICE.txt" "$OUT/licenses/sqlite3.txt"
+}
+
+build_socat() {
+  python3 scripts/prepare-sources.py socat
+  build_crypto
+  local src="$ROOT/$(source_path socat)"
+  (
+    cd "$src"
+    ac_cv_header_resolv_h=no sc_cv_getprotobynumber_r= \
+      LDFLAGS="$LDFLAGS -static" LIBS='-ldl -lm' ./configure \
+      --host="$HOST" --prefix="$PREFIX" --disable-readline --disable-libwrap \
+      --disable-posixmq --enable-openssl --enable-openssl-base="$PREFIX"
+    make -j"$JOBS" socat
+    install -m 755 socat "$OUT/bin/socat"
+  )
+  cp "$src/COPYING" "$OUT/licenses/socat.txt"
+  cp "$src/COPYING.OpenSSL" "$OUT/licenses/socat-OpenSSL.txt"
+}
+
+build_aria2() {
+  python3 scripts/prepare-sources.py aria2 cacert gpl3-license
+  build_crypto
+  build_zlib
+  local src="$ROOT/$(source_path aria2)"
+  (
+    cd "$src"
+    ARIA2_STATIC=yes LDFLAGS="$LDFLAGS -static" LIBS='-ldl -lm' \
+      ./configure --host="$HOST" --prefix="$PREFIX" --disable-shared --enable-static \
+      --with-openssl="$PREFIX" --with-libz --without-gnutls --without-libgcrypt \
+      --without-libnettle --without-libgmp --without-libssh2 --without-libcares \
+      --without-libxml2 --without-libexpat --without-sqlite3 \
+      --disable-metalink --disable-nls --disable-dependency-tracking
+    make -j"$JOBS" LDFLAGS="$LDFLAGS -all-static"
+    install -m 755 src/aria2c "$OUT/bin/aria2c"
+  )
+  cp "$src/COPYING" "$OUT/licenses/aria2.txt"
+  cp "$src/LICENSE.OpenSSL" "$OUT/licenses/aria2-OpenSSL.txt"
+  cp "$ROOT/.work/downloads/GPL-3.0.txt" "$OUT/licenses/aria2-GPL-3.0.txt"
+  cp "$ROOT/docs/ARIA2-NOTICE.txt" "$OUT/licenses/aria2-build.txt"
+  cp "$ROOT/.work/downloads/cacert.pem" "$OUT/cacert.pem"
+}
+
+build_tcpdump() {
+  python3 scripts/prepare-sources.py tcpdump libpcap
+  local pcap="$ROOT/$(source_path libpcap)" src="$ROOT/$(source_path tcpdump)"
+  (
+    cd "$pcap"
+    LDFLAGS="$LDFLAGS -static" ./configure --host="$HOST" --prefix="$PREFIX" \
+      --disable-shared --disable-dbus --disable-bluetooth --without-libnl \
+      --disable-rdma --without-dag --without-septel --without-snf --without-turbocap
+    make -j"$JOBS"
+    make install
+  )
+  (
+    cd "$src"
+    LDFLAGS="$LDFLAGS -static" ./configure --host="$HOST" --prefix="$PREFIX" \
+      --with-crypto=no --without-cap-ng --with-user=nobody
+    make -j"$JOBS"
+    install -m 755 tcpdump "$OUT/bin/tcpdump"
+  )
+  cp "$src/LICENSE" "$OUT/licenses/tcpdump.txt"
+  cp "$pcap/LICENSE" "$OUT/licenses/libpcap.txt"
+}
+
+build_strace() {
+  python3 scripts/prepare-sources.py strace
+  local src="$ROOT/$(source_path strace)"
+  (
+    cd "$src"
+    CPPFLAGS="$CPPFLAGS -Dfputs_unlocked=fputs" LDFLAGS="$LDFLAGS -static" \
+      ./configure --host="$HOST" --prefix="$PREFIX" --enable-mpers=no \
+      --enable-stacktrace=no --without-libunwind --without-libdw \
+      --without-libselinux --without-libiberty --disable-gcc-Werror
+    make -j"$JOBS"
+    install -m 755 src/strace "$OUT/bin/strace"
+  )
+  cp "$src/COPYING" "$OUT/licenses/strace.txt"
+  cp "$src/LGPL-2.1-or-later" "$OUT/licenses/strace-LGPL.txt"
+  cp "$src/bundled/linux/COPYING" "$OUT/licenses/strace-linux.txt"
+}
+
+build_stress_ng() {
+  python3 scripts/prepare-sources.py stress-ng
+  local src="$ROOT/$(source_path stress-ng)"
+  (
+    cd "$src"
+    # Probe the target headers/libraries, never the runner's optional libraries.
+    make -j"$JOBS" STATIC=1 CC="$CC" CXX="$CXX" AR="$AR" \
+      LDFLAGS="$LDFLAGS -static" JOBS="$JOBS"
+    install -m 755 stress-ng "$OUT/bin/stress-ng"
+  )
+  cp "$src/COPYING" "$OUT/licenses/stress-ng.txt"
 }
 
 build_stress() {
@@ -143,14 +302,28 @@ build_ripgrep() {
   )
 }
 
+if [[ ${BUILD_MODE:-all} != package ]]; then
 for tool in "$@"; do
   case "$tool" in
     curl) build_curl ;;
     stress) build_stress ;;
     ripgrep) build_ripgrep ;;
+    jq) build_jq ;;
+    iperf3) build_iperf3 ;;
+    zstd) build_zstd ;;
+    sqlite3) build_sqlite3 ;;
+    socat) build_socat ;;
+    aria2) build_aria2 ;;
+    tcpdump) build_tcpdump ;;
+    strace) build_strace ;;
+    stress-ng) build_stress_ng ;;
     *) echo "Unknown tool: $tool" >&2; exit 2 ;;
   esac
 done
+fi
+if [[ ${BUILD_MODE:-all} == compile ]]; then exit 0; fi
+
+python3 scripts/retain-sources.py "$OUT" "$@"
 
 for binary in "$OUT"/bin/*; do
   "$STRIP" --strip-unneeded "$binary"

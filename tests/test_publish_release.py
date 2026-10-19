@@ -9,7 +9,7 @@ from release.publish import ELF_TARGETS, prepare_assets, validate_run
 
 
 class ReleaseValidationTests(unittest.TestCase):
-    def make_package(self, work, *, corrupt_member=False, arm64=True, arch="arm64", legacy=False):
+    def make_package(self, work, *, corrupt_member=False, arm64=True, arch="arm64", legacy=False, source_suffixes=()):
         source = work / "fixture"
         (source / "bin").mkdir(parents=True)
         (source / "licenses").mkdir()
@@ -22,6 +22,9 @@ class ReleaseValidationTests(unittest.TestCase):
         (source / "USAGE.txt").write_text("usage")
         (source / "cacert.pem").write_text("fixture CA")
         (source / "licenses/curl.txt").write_text("fixture license")
+        for suffix in source_suffixes:
+            (source / "sources").mkdir(exist_ok=True)
+            (source / "sources" / ("upstream-1.tar." + suffix)).write_bytes(b"fixture source archive")
         files = sorted(file for file in source.rglob("*") if file.is_file())
         (source / "SHA256SUMS").write_text("".join(
             f"{hashlib.sha256(file.read_bytes()).hexdigest()}  {file.relative_to(source).as_posix()}\n"
@@ -56,6 +59,15 @@ class ReleaseValidationTests(unittest.TestCase):
             (download / "android-arm64-tools.tar.gz").write_bytes(b"tampered")
             with self.assertRaisesRegex(ValueError, "package checksum"):
                 prepare_assets(download, work / "assets")
+
+    def test_source_archives_preserve_all_compression_formats(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = pathlib.Path(directory)
+            assets, _ = prepare_assets(self.make_package(work, source_suffixes=("gz", "bz2", "xz")), work / "assets")
+            names = {file.name for file in assets}
+            for suffix in ("gz", "bz2", "xz"):
+                self.assertIn("upstream-1-source.tar." + suffix, names)
+                self.assertEqual((work / "assets" / ("upstream-1-source.tar." + suffix)).read_bytes(), b"fixture source archive")
 
     def test_rejects_tampered_member(self):
         with tempfile.TemporaryDirectory() as directory:

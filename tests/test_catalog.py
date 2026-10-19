@@ -6,7 +6,9 @@ from scripts.catalog import load, selection
 class CatalogTests(unittest.TestCase):
     def test_current_matrix_covers_requested_tools_and_android_abis(self):
         catalog = load()
-        self.assertEqual(set(selection("all", catalog["tools"])), {"ripgrep", "stress", "curl"})
+        self.assertEqual(set(selection("all", catalog["tools"])), {
+            "ripgrep", "stress", "curl", "jq", "iperf3", "zstd", "sqlite3",
+            "socat", "aria2", "tcpdump", "strace", "stress-ng"})
         self.assertEqual({value["abi"] for value in catalog["architectures"].values()},
                          {"arm64-v8a", "armeabi-v7a", "x86_64", "x86"})
         self.assertEqual(selection("ripgrep,curl", catalog["tools"]), ["ripgrep", "curl"])
