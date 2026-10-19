@@ -34,11 +34,11 @@
     "checksum": "sha256:a41b5d356aea97a529fe27e0f7316d2f9d946d75927476cf9cf1b90637d00505"
   },
   "ndk": {
-    "version": "30.0.16248370",
-    "url": "https://dl.google.com/android/repository/android-ndk-r30-linux.zip",
-    "filename": "android-ndk-r30-linux.zip",
-    "checksum": "sha1:5107f898313790e449e87eee2183d9a20602dee9",
-    "directory": "toolchains/android-ndk-r30"
+    "version": "28.2.13676358",
+    "url": "https://dl.google.com/android/repository/android-ndk-r28c-linux.zip",
+    "filename": "android-ndk-r28c-linux.zip",
+    "checksum": "sha1:a7b54a5de87fecd125a17d54f73c446199e72a64",
+    "directory": "toolchains/android-ndk-r28c"
   },
   "ripgrep": {
     "version": "15.2.0",
