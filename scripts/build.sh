@@ -194,7 +194,9 @@ build_aria2() {
   local src="$ROOT/$(source_path aria2)"
   (
     cd "$src"
-    ARIA2_STATIC=yes LDFLAGS="$LDFLAGS -static -static-libstdc++" LIBS='-ldl -lm' \
+    # Upstream's ARIA2_STATIC=yes adds GNU/Linux -lpthread and -lrt, whose
+    # functions are part of Android libc. Request static linkage ourselves.
+    ARIA2_STATIC=no LDFLAGS="$LDFLAGS -static -static-libstdc++" LIBS='-ldl -lm' \
       ./configure --host="$HOST" --prefix="$PREFIX" --disable-shared --enable-static \
       --with-openssl --with-libz --without-gnutls --without-libgcrypt \
       --without-libnettle --without-libgmp --without-libssh2 --without-libcares \
