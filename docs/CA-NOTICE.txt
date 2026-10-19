@@ -1,0 +1,11 @@
+The CA bundle included as cacert.pem and embedded in curl is the Mozilla
+public root certificate data converted to PEM by curl's mk-ca-bundle tool.
+It is provided under the Mozilla Public License, version 2.0:
+https://www.mozilla.org/MPL/2.0/
+
+The complete, unmodified converted source is included as cacert.pem.
+Pinned upstream source:
+https://curl.se/ca/cacert-2026-09-25.pem
+
+Conversion and source information:
+https://curl.se/docs/caextract.html
