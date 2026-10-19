@@ -107,7 +107,9 @@ build_stress() {
   stresssrc="$ROOT/$(source_path stress)"
   (
     cd "$stresssrc"
-    LDFLAGS="$LDFLAGS -static" ./configure --host="$HOST" \
+    # Bionic's malloc(0) returns an allocation. Autoconf cannot run this probe
+    # while cross-compiling and otherwise selects a nonexistent rpl_malloc.
+    ac_cv_func_malloc_0_nonnull=yes LDFLAGS="$LDFLAGS -static" ./configure --host="$HOST" \
       --prefix="$PREFIX"
     make -j"$JOBS"
     install -m 755 src/stress "$OUT/bin/stress"
@@ -120,16 +122,20 @@ build_stress() {
 
 build_ripgrep() {
   python3 scripts/prepare-sources.py ripgrep
-  local rgsrc linker_key
+  local rgsrc linker_key builtins
   rgsrc="$ROOT/$(source_path ripgrep)"
   rustup toolchain install "$RUST_VERSION" --profile minimal --no-self-update
   rustup target add --toolchain "$RUST_VERSION" "$RUST_TARGET"
   linker_key="CARGO_TARGET_${RUST_TARGET^^}_LINKER"
   linker_key=${linker_key//-/_}
+  # Rust uses -nodefaultlibs. Bionic's x86 CPU dispatch still needs compiler-rt,
+  # which the Clang driver would normally add to a C executable itself.
+  builtins=$("$CC" --print-libgcc-file-name)
+  test -f "$builtins"
   (
     cd "$rgsrc"
     export "$linker_key=$CC"
-    export RUSTFLAGS='-C target-feature=+crt-static -C relocation-model=static -C link-arg=-static -C link-arg=-no-pie -C link-arg=-Wl,-z,max-page-size=16384 -C panic=abort'
+    export RUSTFLAGS="-C target-feature=+crt-static -C relocation-model=static -C link-arg=-static -C link-arg=-Wl,-z,max-page-size=16384 -C panic=abort -C link-arg=$builtins"
     cargo +"$RUST_VERSION" build --locked --release --target "$RUST_TARGET" --bin rg -j "$JOBS"
     install -m 755 "target/$RUST_TARGET/release/rg" "$OUT/bin/rg"
     cargo +"$RUST_VERSION" metadata --locked --format-version 1 --filter-platform "$RUST_TARGET" |
