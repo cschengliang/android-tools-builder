@@ -2,7 +2,7 @@
 
 使用 GitHub Actions 的 Ubuntu 标准运行器，从上游源码交叉编译供 **Android 10 及以上、ARM64** 原生 shell 使用的工具。
 
-仓库中只保存 workflow、构建脚本、版本校验清单和说明。NDK 下载、上游源码下载、编译、测试、打包和产物上传均由 GitHub Actions 执行。
+仓库中只保存 workflow、构建和发布脚本、版本校验清单及说明。NDK 下载、上游源码下载、编译、测试、打包、产物上传和 Release 发布均由 GitHub Actions 执行。
 
 不重复打包手机通常已有的 `ls`、`cp`、`cat`、`grep` 等基础命令。
 
@@ -22,12 +22,12 @@ curl 暂不包含 HTTP/3、SSH/SFTP、Brotli、Zstd、国际化域名和 libpsl�
 
 1. 打开本仓库的 **Actions → Build Android ARM64 tools → Run workflow**。
 2. 选择 `curl` 或 `curl jq`，默认构建全部已支持的工具。
-3. 构建通过后，在该次运行的 **Artifacts** 中下载 `android-arm64-tools`。
-4. 解开 GitHub 提供的 ZIP，得到 `android-arm64-tools.tar.gz` 和对应的 `.sha256` 校验文件。工具包内的可执行文件位于 `bin/`。
+3. 构建通过后，**Publish Android ARM64 release** 会自动发布到仓库的 **Releases**。
+4. 在 Release 中下载完整工具包 `android-arm64-tools.tar.gz`，或单独的 `curl-android-arm64`、`jq-android-arm64`。工具包内的可执行文件位于 `bin/`。
 
 修改 workflow、脚本、源码清单或构建说明并推送时，也会自动构建。仓库无需保存编译产物或工具链。
 
-workflow 使用 `ubuntu-24.04` 标准运行器，执行编译、架构与依赖检查，以及 QEMU 下的 ARM64 程序测试，产物保存 14 天。
+workflow 使用 `ubuntu-24.04` 标准运行器，执行编译、架构与依赖检查，以及 QEMU 下的 ARM64 程序测试。Actions Artifacts 保留 14 天；Release 附件独立保存。
 公开仓库标准运行器的计算时间免费；存储另有额度。参见 [GitHub Actions 计费说明](https://docs.github.com/en/billing/concepts/product-billing/github-actions)。
 
 ## 在手机上运行
@@ -64,10 +64,30 @@ adb shell /data/local/tmp/tools/jq --version
 5. 检查 AArch64 ELF 架构，并拒绝带动态解释器或动态库依赖的产物。
 6. 通过 QEMU 运行 ARM64 程序，检查 curl 的 HTTPS/HTTP2 功能标记、可信和未知证书的处理，以及 jq 的 JSON 和正则功能。
 7. 打包许可证、源码清单、工具和校验值，只有前面步骤均成功才上传到该次 Actions 运行的 Artifacts。
+8. 独立的发布 workflow 接收成功事件，校验包及内部文件后自动发布 Release。
 
 `dist/` 和 `.work/` 均被 `.gitignore` 排除，只在运行器上产生。
 包名为 `android-arm64-tools.tar.gz`，附带整个包的 SHA-256 校验文件；运行摘要会列出目标平台和构建工具。
 QEMU 测试不替代真机测试，Android DNS、SELinux、应用网络权限仍需在手机上确认。
+
+## 自动发布 Release
+
+`.github/workflows/release.yml` 在主分支构建成功后运行 `release/publish.py`。它只读取本仓库 `main` 分支上 `build.yml` 的成功构建，校验产物散列值，并将 Release 标签固定到对应的源码提交。
+
+每次构建对应一个标签，例如 `android-arm64-build-1`。已经发布的同一构建会直接跳过；附件全部上传后才将草稿转为正式 Release。
+
+Release 附件包括：
+
+- `android-arm64-tools.tar.gz` 和对应的 `.sha256` 文件：完整工具包。
+- `curl-android-arm64`、`jq-android-arm64`：本次实际构建的独立程序；只构建 curl 时不会包含 jq。
+- `licenses.tar.gz`：独立程序对应的许可证、源码版本清单、CA 和使用说明。
+- `SHA256SUMS`：所有附件的校验值。
+
+下载独立程序后先执行 `chmod 755 文件名`，也可以将它改名为 `curl` 或 `jq`。校验全部附件可执行 `sha256sum -c SHA256SUMS`。
+
+已有成功构建也能发布：在 **Actions → Publish Android ARM64 release → Run workflow** 中填写该次构建的数字 `run_id`（构建页面 URL 的最后一段）。该流程直接下载已有 Artifacts，不重新编译；对应产物需要尚未过期。
+
+发布 workflow 使用内置 `GITHUB_TOKEN` 的 `actions: read` 和 `contents: write` 权限，无需额外配置 PAT。构建 workflow 仍然只有读取权限。
 
 ## 版本与证书更新
 
