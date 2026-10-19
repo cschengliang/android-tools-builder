@@ -4,3 +4,7 @@ is provided in aria2-GPL-3.0.txt alongside upstream's original notices.
 OpenSSL 3 is distributed under Apache License 2.0; see OpenSSL.txt.
 The exact aria2, OpenSSL and zlib source archives and the build recipes
 are included under sources/ and in the GitHub Release.
+
+The vendored GPLv3 text is an unmodified copy of:
+https://www.gnu.org/licenses/gpl-3.0.txt
+SHA256: 3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986

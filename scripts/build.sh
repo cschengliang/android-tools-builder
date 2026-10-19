@@ -188,7 +188,7 @@ build_socat() {
 }
 
 build_aria2() {
-  python3 scripts/prepare-sources.py aria2 cacert gpl3-license
+  python3 scripts/prepare-sources.py aria2 cacert
   build_crypto
   build_zlib
   local src="$ROOT/$(source_path aria2)"
@@ -205,7 +205,7 @@ build_aria2() {
   )
   cp "$src/COPYING" "$OUT/licenses/aria2.txt"
   cp "$src/LICENSE.OpenSSL" "$OUT/licenses/aria2-OpenSSL.txt"
-  cp "$ROOT/.work/downloads/GPL-3.0.txt" "$OUT/licenses/aria2-GPL-3.0.txt"
+  cp "$ROOT/docs/GPL-3.0.txt" "$OUT/licenses/aria2-GPL-3.0.txt"
   cp "$ROOT/docs/ARIA2-NOTICE.txt" "$OUT/licenses/aria2-build.txt"
   cp "$ROOT/.work/downloads/cacert.pem" "$OUT/cacert.pem"
 }
