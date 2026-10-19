@@ -5,17 +5,20 @@ import tarfile
 import tempfile
 import unittest
 
-from release.publish import prepare_assets, validate_run
+from release.publish import ELF_TARGETS, prepare_assets, validate_run
 
 
 class ReleaseValidationTests(unittest.TestCase):
-    def make_package(self, work, *, corrupt_member=False, arm64=True):
+    def make_package(self, work, *, corrupt_member=False, arm64=True, arch="arm64", legacy=False):
         source = work / "fixture"
         (source / "bin").mkdir(parents=True)
         (source / "licenses").mkdir()
-        header = b"\x7fELF\x02\x01" + b"\x00" * 12
-        (source / "bin/curl").write_bytes(header + (b"\xb7\x00" if arm64 else b"\x3e\x00"))
+        elf_class, machine = ELF_TARGETS[arch]
+        header = b"\x7fELF" + bytes([elf_class, 1]) + b"\x00" * 12
+        (source / "bin/curl").write_bytes(header + (machine if arm64 else 999).to_bytes(2, "little"))
         (source / "sources.json").write_text(json.dumps({"curl": {"version": "test"}}))
+        if not legacy:
+            (source / "build-info.json").write_text(json.dumps({"architecture": arch, "tools": {"curl": {"binary": "curl", "version": "test"}}}))
         (source / "USAGE.txt").write_text("usage")
         (source / "cacert.pem").write_text("fixture CA")
         (source / "licenses/curl.txt").write_text("fixture license")
@@ -27,7 +30,7 @@ class ReleaseValidationTests(unittest.TestCase):
             (source / "bin/curl").write_bytes(b"tampered")
         download = work / "download"
         download.mkdir()
-        archive = download / "android-arm64-tools.tar.gz"
+        archive = download / f"android-{arch}-tools.tar.gz"
         with tarfile.open(archive, "w:gz") as bundle:
             for file in source.rglob("*"):
                 if file.is_file():
@@ -42,7 +45,7 @@ class ReleaseValidationTests(unittest.TestCase):
             download = self.make_package(work)
             assets, tools = prepare_assets(download, work / "assets")
             self.assertEqual(tools, {"curl": "test"})
-            self.assertIn("licenses.tar.gz", [file.name for file in assets])
+            self.assertIn("licenses-android-arm64.tar.gz", [file.name for file in assets])
             self.assertEqual((work / "assets/curl-android-arm64").read_bytes(),
                              (work / "fixture/bin/curl").read_bytes())
 
@@ -65,8 +68,23 @@ class ReleaseValidationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             work = pathlib.Path(directory)
             download = self.make_package(work, arm64=False)
-            with self.assertRaisesRegex(ValueError, "ARM64 ELF"):
+            with self.assertRaisesRegex(ValueError, "arm64 ELF"):
                 prepare_assets(download, work / "assets")
+
+    def test_all_architectures_produce_distinct_assets(self):
+        for arch in ELF_TARGETS:
+            with self.subTest(arch=arch), tempfile.TemporaryDirectory() as directory:
+                work = pathlib.Path(directory)
+                assets, tools = prepare_assets(self.make_package(work, arch=arch), work / "assets")
+                self.assertIn(f"curl-android-{arch}", [file.name for file in assets])
+                self.assertIn(f"android-{arch}-tools.tar.gz", [file.name for file in assets])
+                self.assertEqual(tools, {"curl": "test"})
+
+    def test_legacy_arm64_artifact_is_still_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = pathlib.Path(directory)
+            _, tools = prepare_assets(self.make_package(work, legacy=True), work / "assets")
+            self.assertEqual(tools, {"curl": "test"})
 
     def test_rejects_failed_or_foreign_builds(self):
         run = {"status": "completed", "conclusion": "success", "head_branch": "main",

@@ -1,30 +1,37 @@
-Android ARM64 tools (Android 10 / API 29 and newer)
+Android command-line tools (Android 10 / API 29 and newer)
 
-Extract the archive. The executable files are in bin/.
-Use a shell-owned executable directory, for example /data/local/tmp/tools.
-No root is required for normal file processing or network requests.
+Choose an archive matching the device ABI:
+  arm64  -> arm64-v8a
+  armv7  -> armeabi-v7a
+  x86_64 -> x86_64
+  x86    -> x86
 
-Example from your computer with adb installed:
-  adb shell mkdir -p /data/local/tmp/tools
-  adb push bin/. /data/local/tmp/tools/
-  adb shell chmod 755 /data/local/tmp/tools/curl
-  adb shell /data/local/tmp/tools/curl --version
-  adb shell /data/local/tmp/tools/curl -I https://example.com
+The executable files are in bin/. build-info.json records this package's
+exact architecture, ABI and tools. BUILD-LIST.md lists the configured matrix.
 
-curl includes OpenSSL, nghttp2 (HTTP/2), zlib (gzip) and an embedded
-Mozilla CA bundle. HTTPS certificate verification is enabled by default.
-Use --cacert /path/to/custom-ca.pem for a private CA, or set CURL_CA_BUNDLE.
-The embedded CA bundle is a build-time snapshot; rebuild it when updating
-trusted certificates. HTTP/3, SSH/SFTP and Brotli/Zstd are not included.
+Copy to an executable directory, for example /data/local/tmp/tools for adb shell.
+Normal file processing and network requests do not require root.
+Use chmod 755 on downloaded files. Shared storage such as /sdcard normally
+cannot execute files. Access permissions come from the shell or app running them.
 
-jq includes the Oniguruma regular expression engine when selected.
+Tools:
+  rg      ripgrep: recursive text/regex search; Unicode and ignore rules.
+  stress  Classic CPU, memory, I/O and disk stress tool.
+  curl    Network requests; HTTPS, HTTP/2, proxies, IPv6, gzip, embedded CA.
 
-These binaries are built for Android ARM64, not desktop Linux ARM64.
-File access and network permissions are those of the shell/app running them.
-Android's shared storage (for example /sdcard) normally cannot execute files.
+Examples:
+  ./rg --version
+  ./stress --version
+  ./curl -I https://example.com
 
-Verify package contents after extraction:
+curl uses a build-time Mozilla CA snapshot. For a private CA, use
+--cacert /path/to/custom-ca.pem or CURL_CA_BUNDLE. Certificate verification
+is enabled by default. HTTP/3, SSH/SFTP, Brotli and Zstd are not included.
+ripgrep uses its default Rust regex engine; optional PCRE2 is not enabled.
+
+Verify package contents:
   sha256sum -c SHA256SUMS
 
-The licenses/ directory contains upstream notices for the distributed code.
-sources.json records upstream versions, URLs and archive checksums.
+licenses/ contains notices and sources.json records source versions and hashes.
+When stress is included, sources/ contains its exact corresponding source archive.
+Build rules are available in the source tag attached to the GitHub Release.

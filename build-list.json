@@ -1,0 +1,15 @@
+{
+  "android_api": 29,
+  "rust_toolchain": "1.99.1",
+  "tools": {
+    "ripgrep": {"binary": "rg", "description": "递归文本和正则搜索", "features": "Unicode、忽略规则、Rust 正则引擎", "homepage": "https://github.com/BurntSushi/ripgrep", "dependencies": ["ripgrep"]},
+    "stress": {"binary": "stress", "description": "CPU、内存、I/O 和磁盘压力测试", "features": "经典 stress；附带对应源码", "homepage": "https://github.com/resurrecting-open-source-projects/stress", "dependencies": ["stress"]},
+    "curl": {"binary": "curl", "description": "网络请求、下载和接口调试", "features": "HTTPS、HTTP/2、代理、gzip、内置 CA", "homepage": "https://curl.se/", "dependencies": ["curl", "openssl", "nghttp2", "zlib", "cacert"]}
+  },
+  "architectures": {
+    "arm64": {"abi": "arm64-v8a", "description": "主流 64 位 ARM 手机和平板", "clang": "aarch64-linux-android", "host": "aarch64-linux-android", "openssl": "android-arm64", "rust": "aarch64-linux-android", "qemu": "aarch64", "machine": 183, "elf_class": 2},
+    "armv7": {"abi": "armeabi-v7a", "description": "32 位 ARM 设备", "clang": "armv7a-linux-androideabi", "host": "arm-linux-androideabi", "openssl": "android-arm", "rust": "armv7-linux-androideabi", "qemu": "arm", "machine": 40, "elf_class": 1},
+    "x86_64": {"abi": "x86_64", "description": "64 位 x86 模拟器及设备", "clang": "x86_64-linux-android", "host": "x86_64-linux-android", "openssl": "android-x86_64", "rust": "x86_64-linux-android", "qemu": "x86_64", "machine": 62, "elf_class": 2},
+    "x86": {"abi": "x86", "description": "32 位 x86 模拟器及设备", "clang": "i686-linux-android", "host": "i686-linux-android", "openssl": "android-x86", "rust": "i686-linux-android", "qemu": "i386", "machine": 3, "elf_class": 1}
+  }
+}

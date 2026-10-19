@@ -1,8 +1,8 @@
-name: Publish Android ARM64 release
+name: Publish Android release
 
 on:
   workflow_run:
-    workflows: [Build Android ARM64 tools]
+    workflows: [Build Android tools]
     types: [completed]
     branches: [main]
   workflow_dispatch:

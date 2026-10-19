@@ -4,10 +4,19 @@ trap 'echo "Build failed at line $LINENO" >&2' ERR
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
-API=29
+ARCH=${ARCH:-arm64}
+API=$(python3 -c 'import json; print(json.load(open("build-list.json"))["android_api"])')
+if [[ $# == 0 ]]; then set -- ripgrep stress curl; fi
+python3 scripts/catalog.py plan --tools "$*" --architectures "$ARCH" > /dev/null
+arch_field() { python3 scripts/catalog.py arch --arch "$ARCH" --field "$1"; }
+CLANG_TARGET=$(arch_field clang)
+HOST=$(arch_field host)
+OPENSSL_TARGET=$(arch_field openssl)
+RUST_TARGET=$(arch_field rust)
+RUST_VERSION=$(python3 scripts/catalog.py rust-version)
 JOBS=${JOBS:-$(nproc)}
-PREFIX="$ROOT/.work/prefix/android-$API"
-OUT="$ROOT/dist/android-arm64"
+PREFIX="$ROOT/.work/prefix/$ARCH-android-$API"
+OUT="$ROOT/dist/android-$ARCH"
 mkdir -p "$PREFIX" "$OUT/bin" "$OUT/licenses"
 
 source_path() {
@@ -22,8 +31,8 @@ export ANDROID_NDK_HOME
 export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
 TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64"
 export PATH="$TOOLCHAIN/bin:$PATH"
-export CC="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang"
-export CXX="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang++"
+export CC="$TOOLCHAIN/bin/${CLANG_TARGET}${API}-clang"
+export CXX="$TOOLCHAIN/bin/${CLANG_TARGET}${API}-clang++"
 export AR="$TOOLCHAIN/bin/llvm-ar"
 export RANLIB="$TOOLCHAIN/bin/llvm-ranlib"
 export STRIP="$TOOLCHAIN/bin/llvm-strip"
@@ -34,7 +43,6 @@ export LDFLAGS="-L$PREFIX/lib -Wl,-z,max-page-size=16384 -Wl,--gc-sections"
 export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"
 export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
 export PKG_CONFIG_ALLOW_CROSS=1
-HOST=aarch64-linux-android
 
 build_curl() {
   python3 scripts/prepare-sources.py curl openssl nghttp2 zlib cacert
@@ -46,7 +54,7 @@ build_curl() {
   (
     cd "$ssl"
     export CC=clang CXX=clang++
-    ./Configure android-arm64 -D__ANDROID_API__="$API" \
+    ./Configure "$OPENSSL_TARGET" -D__ANDROID_API__="$API" \
       --prefix="$PREFIX" --libdir=lib \
       no-shared no-tests no-apps no-module no-dso no-legacy no-autoload-config
     make -j"$JOBS" build_libs
@@ -93,29 +101,48 @@ build_curl() {
   cp "$ROOT/.work/downloads/cacert.pem" "$OUT/cacert.pem"
 }
 
-build_jq() {
-  python3 scripts/prepare-sources.py jq
-  local jqsrc
-  jqsrc="$ROOT/$(source_path jq)"
+build_stress() {
+  python3 scripts/prepare-sources.py stress
+  local stresssrc
+  stresssrc="$ROOT/$(source_path stress)"
   (
-    cd "$jqsrc"
+    cd "$stresssrc"
     LDFLAGS="$LDFLAGS -static" ./configure --host="$HOST" \
-      --prefix="$PREFIX" --disable-shared --enable-static \
-      --with-oniguruma=builtin --disable-docs --disable-maintainer-mode
-    rm -f jq
-    make -j"$JOBS" LDFLAGS="$LDFLAGS -all-static"
-    install -m 755 jq "$OUT/bin/jq"
+      --prefix="$PREFIX"
+    make -j"$JOBS"
+    install -m 755 src/stress "$OUT/bin/stress"
   )
-  cp "$jqsrc/COPYING" "$OUT/licenses/jq.txt"
-  cp "$jqsrc/vendor/oniguruma/COPYING" "$OUT/licenses/oniguruma.txt"
+  cp "$stresssrc/COPYING" "$OUT/licenses/stress.txt"
+  # Distribute the exact corresponding GPL source together with its binaries.
+  mkdir -p "$OUT/sources"
+  cp "$ROOT/.work/downloads/$(basename "$stresssrc").tar.gz" "$OUT/sources/"
 }
 
-if [[ $# == 0 ]]; then set -- curl; fi
+build_ripgrep() {
+  python3 scripts/prepare-sources.py ripgrep
+  local rgsrc linker_key
+  rgsrc="$ROOT/$(source_path ripgrep)"
+  rustup toolchain install "$RUST_VERSION" --profile minimal --no-self-update
+  rustup target add --toolchain "$RUST_VERSION" "$RUST_TARGET"
+  linker_key="CARGO_TARGET_${RUST_TARGET^^}_LINKER"
+  linker_key=${linker_key//-/_}
+  (
+    cd "$rgsrc"
+    export "$linker_key=$CC"
+    export RUSTFLAGS='-C target-feature=+crt-static -C relocation-model=static -C link-arg=-static -C link-arg=-no-pie -C link-arg=-Wl,-z,max-page-size=16384 -C panic=abort'
+    cargo +"$RUST_VERSION" build --locked --release --target "$RUST_TARGET" --bin rg -j "$JOBS"
+    install -m 755 "target/$RUST_TARGET/release/rg" "$OUT/bin/rg"
+    cargo +"$RUST_VERSION" metadata --locked --format-version 1 --filter-platform "$RUST_TARGET" |
+      python3 "$ROOT/scripts/collect-rust-licenses.py" "$OUT/licenses/rust" "$(rustup run "$RUST_VERSION" rustc --print sysroot)"
+  )
+}
+
 for tool in "$@"; do
   case "$tool" in
     curl) build_curl ;;
-    jq) build_jq ;;
-    *) echo "Unknown tool: $tool (supported: curl jq)" >&2; exit 2 ;;
+    stress) build_stress ;;
+    ripgrep) build_ripgrep ;;
+    *) echo "Unknown tool: $tool" >&2; exit 2 ;;
   esac
 done
 
@@ -123,12 +150,10 @@ for binary in "$OUT"/bin/*; do
   "$STRIP" --strip-unneeded "$binary"
   report="$OUT/$(basename "$binary").elf.txt"
   "$TOOLCHAIN/bin/llvm-readelf" -h -l -d "$binary" > "$report"
-  if ! grep -q 'Machine:.*AArch64' "$report"; then
-    echo "Incorrect architecture: $binary" >&2; exit 1
-  fi
+  python3 scripts/verify-elf.py "$binary" "$ARCH"
   if grep -Eq 'NEEDED|INTERP' "$report"; then
     echo "Unexpected dynamic dependency: $binary" >&2; exit 1
   fi
 done
 cp "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/NOTICE" "$OUT/licenses/NDK-NOTICE.txt"
-python3 scripts/package.py
+python3 scripts/package.py --arch "$ARCH" --tools "$*"

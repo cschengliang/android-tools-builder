@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Exercise the actual Android ARM64 programs under QEMU user emulation."""
+"""Exercise the actual Android programs under architecture-specific QEMU."""
+import json
+import os
 import http.server
 import pathlib
 import shutil
@@ -9,14 +11,18 @@ import tempfile
 import threading
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-BIN = ROOT / "dist/android-arm64/bin"
-QEMU = shutil.which("qemu-aarch64") or shutil.which("qemu-aarch64-static")
+ARCH = os.environ.get("ARCH", "arm64")
+CATALOG = json.loads((ROOT / "build-list.json").read_text())
+BIN = ROOT / f"dist/android-{ARCH}/bin"
+target = CATALOG["architectures"][ARCH]["qemu"]
+QEMU = shutil.which(f"qemu-{target}") or shutil.which(f"qemu-{target}-static")
 if not QEMU:
-    raise SystemExit("Install qemu-user or qemu-user-static to run ARM64 smoke tests")
+    raise SystemExit(f"Install qemu-user to test {ARCH}")
 
 
 def run(name, *args, input=None, check=True):
-    result = subprocess.run([QEMU, str(BIN / name), *args], input=input,
+    cpu = "cortex-a15" if ARCH == "armv7" else "max"
+    result = subprocess.run([QEMU, "-cpu", cpu, str(BIN / name), *args], input=input,
                             text=True, capture_output=True, timeout=30)
     if check and result.returncode:
         raise RuntimeError(f"{name} failed ({result.returncode}): {result.stderr}")
@@ -25,7 +31,7 @@ def run(name, *args, input=None, check=True):
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        body = b'{"android_arm64":true}\n'
+        body = b'{"android_tools":true}\n'
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -64,17 +70,25 @@ if (BIN / "curl").exists():
             # Explicitly trusting the local CA must permit a verified TLS request.
             response = run("curl", *options, "--cacert", str(certificate),
                            f"https://localhost:{port}/")
-            assert response.stdout == '{"android_arm64":true}\n'
+            assert response.stdout == '{"android_tools":true}\n'
             print("PASS: verified HTTPS succeeds; untrusted certificate is rejected", flush=True)
         finally:
             server.shutdown()
             server.server_close()
             thread.join()
 
-if (BIN / "jq").exists():
-    print(run("jq", "--version").stdout, end="", flush=True)
-    assert run("jq", "-r", ".items | map(. * 2) | add",
-               input='{"items":[1,2,3]}').stdout.strip() == "12"
-    assert run("jq", "-r", '.name | test("^Android [0-9]+$")',
-               input='{"name":"Android 10"}').stdout.strip() == "true"
-    print("PASS: jq JSON processing and regular expressions", flush=True)
+if (BIN / "rg").exists():
+    print(run("rg", "--version").stdout, end="", flush=True)
+    result = run("rg", "--ignore-case", "^android$", input="Android\nandroid\nLinux\n")
+    assert result.stdout == "Android\nandroid\n"
+    assert run("rg", "系统", input="Android 系统\nLinux\n").stdout == "Android 系统\n"
+    print("PASS: ripgrep regular expressions and Unicode", flush=True)
+
+if (BIN / "stress").exists():
+    print(run("stress", "--version").stdout, end="", flush=True)
+    result = run("stress", "--cpu", "1", "--vm", "1", "--vm-bytes", "1M", "--timeout", "1", "--backoff", "0")
+    print(result.stdout, end="", flush=True)
+    assert "successful run completed" in result.stdout
+    print("PASS: stress bounded CPU and memory workload", flush=True)
+
+print(f"PASS: all selected tools tested on {ARCH}", flush=True)

@@ -1,35 +1,63 @@
-name: Build Android ARM64 tools
+name: Build Android tools
 
 on:
   workflow_dispatch:
     inputs:
       tools:
-        description: Tools to build
-        type: choice
-        default: curl jq
-        options:
-          - curl
-          - curl jq
+        description: 'all, or space-separated: ripgrep stress curl'
+        type: string
+        default: all
+      architectures:
+        description: 'all, or space-separated: arm64 armv7 x86_64 x86'
+        type: string
+        default: all
   push:
+    branches: [main]
     paths:
       - .github/workflows/build.yml
       - scripts/**
       - sources.json
+      - build-list.json
+      - BUILD-LIST.md
       - docs/**
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-arm64-${{ github.ref }}
+  group: android-tools-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Check catalog and release validation
+        run: |
+          python3 scripts/catalog.py check
+          python3 -m unittest discover -s tests -v
+      - id: matrix
+        name: Select tools and architectures
+        env:
+          SELECTED_TOOLS: ${{ inputs.tools || 'all' }}
+          SELECTED_ARCHITECTURES: ${{ inputs.architectures || 'all' }}
+        run: python3 scripts/catalog.py plan --tools "$SELECTED_TOOLS" --architectures "$SELECTED_ARCHITECTURES"
+
   build:
+    needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
-      SELECTED_TOOLS: ${{ inputs.tools || 'curl jq' }}
+      ARCH: ${{ matrix.arch }}
+      BUILD_TOOLS: ${{ matrix.tools }}
       ANDROID_NDK_HOME: ''
     steps:
       - uses: actions/checkout@v6
@@ -41,36 +69,25 @@ jobs:
           sudo apt-get install -y --no-install-recommends build-essential pkg-config perl python3 unzip qemu-user openssl
       - name: Download and verify upstream sources and Android NDK
         run: |
-          sources=(ndk curl openssl nghttp2 zlib cacert)
-          read -r -a tools <<< "$SELECTED_TOOLS"
-          for tool in "${tools[@]}"; do
-            if [[ "$tool" == jq ]]; then sources+=(jq); fi
-          done
+          read -r -a sources <<< "$(python3 scripts/catalog.py dependencies --tools "$BUILD_TOOLS")"
           python3 scripts/prepare-sources.py "${sources[@]}"
-      - name: Cross-compile for Android 10+ ARM64
+      - name: Cross-compile selected Android tools
         run: |
-          read -r -a tools <<< "$SELECTED_TOOLS"
+          read -r -a tools <<< "$BUILD_TOOLS"
           bash scripts/build.sh "${tools[@]}"
-      - name: Test ARM64 binaries with QEMU
+      - name: Test actual executables with QEMU
         run: python3 scripts/smoke-test.py
-      - name: Generate package checksum and build summary
+      - name: Generate package checksum and summary
         run: |
-          sha256sum dist/android-arm64-tools.tar.gz > dist/android-arm64-tools.tar.gz.sha256
-          {
-            printf '### Android ARM64 tools\n\n'
-            printf -- '- Target: Android 10+ (API 29), ARM64\n'
-            printf -- '- Tools: %s\n' "$SELECTED_TOOLS"
-            printf -- '- Built from verified upstream source archives on this GitHub runner\n'
-            printf -- '- ARM64 executable and TLS tests passed\n\n'
-            printf 'Download the package and checksum from this run’s Artifacts.\n'
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload executable package
+          sha256sum "dist/android-${ARCH}-tools.tar.gz" > "dist/android-${ARCH}-tools.tar.gz.sha256"
+          printf '### %s\n\nTools: %s\n\nBuild, ELF and QEMU checks passed.\n' "$ARCH" "$BUILD_TOOLS" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload architecture package
         uses: actions/upload-artifact@v7
         with:
-          name: android-arm64-tools
+          name: android-${{ matrix.arch }}-tools
           path: |
-            dist/android-arm64-tools.tar.gz
-            dist/android-arm64-tools.tar.gz.sha256
+            dist/android-${{ matrix.arch }}-tools.tar.gz
+            dist/android-${{ matrix.arch }}-tools.tar.gz.sha256
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
