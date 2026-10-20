@@ -56,7 +56,9 @@ def command(name, *args):
 
 def run(name, *args, input=None, check=True, binary=False):
     result = subprocess.run(command(name, *args), input=input,
-                            text=not binary, capture_output=True, timeout=30)
+                            text=not binary, capture_output=True, timeout=30,
+                            encoding=None if binary else "utf-8",
+                            errors=None if binary else "backslashreplace")
     if check and result.returncode:
         raise RuntimeError(f"{name} failed ({result.returncode}): {result.stderr}")
     return result
@@ -174,10 +176,12 @@ if available("iperf3"):
             result = run("iperf3", "-c", "127.0.0.1", "-p", port, "-t", "1", "-J", check=False)
             if result.returncode == 0:
                 break
+            print(f"iperf3 client exit {result.returncode}: {result.stdout!r} {result.stderr!r}", flush=True)
             if server.poll() is not None:
                 raise RuntimeError("iperf3 server exited: " + str(server.communicate()))
             time.sleep(0.1)
         assert result.returncode == 0, result.stdout + result.stderr
+        print(f"iperf3 JSON: {result.stdout}", flush=True)
         assert json.loads(result.stdout)["end"]["sum_received"]["bytes"] > 0
         server.communicate(timeout=10)
         assert server.returncode == 0
