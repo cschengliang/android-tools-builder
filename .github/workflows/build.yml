@@ -90,7 +90,10 @@ jobs:
           fi
           BUILD_MODE=package bash scripts/build.sh "${tools[@]}"
       - name: Test actual executables with QEMU
-        run: python3 scripts/smoke-test.py
+        # 32-bit Bionic mutexes require TIDs <= 65535. A fresh PID namespace
+        # keeps QEMU's guest IDs small after the compiler spawned many tasks.
+        # Drop back to the runner user so tests retain normal user permissions.
+        run: sudo unshare --pid --fork --mount-proc runuser -u "$(id -un)" -- env ARCH="$ARCH" python3 scripts/smoke-test.py
       - name: Generate package checksum and summary
         run: |
           sha256sum "dist/android-${ARCH}-tools.tar.gz" > "dist/android-${ARCH}-tools.tar.gz.sha256"

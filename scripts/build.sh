@@ -55,7 +55,7 @@ build_crypto() {
     export CC=clang CXX=clang++
     ./Configure "$OPENSSL_TARGET" -D__ANDROID_API__="$API" \
       --prefix="$PREFIX" --libdir=lib \
-      no-shared no-tests no-apps no-module no-dso no-legacy no-autoload-config
+      no-shared no-tests no-apps no-module no-dso enable-legacy no-autoload-config
     make -j"$JOBS" build_libs
     make install_dev
   )

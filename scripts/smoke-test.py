@@ -24,6 +24,9 @@ if not QEMU:
     raise SystemExit(f"Install qemu-user to test {ARCH}")
 
 ONLY = os.environ.get("SMOKE_TOOL")
+# iperf3 defaults to Android's /data/local/tmp, absent on a Linux CI runner.
+# Its documented TMPDIR override lets the actual Android binary use CI storage.
+os.environ["TMPDIR"] = tempfile.gettempdir()
 if not ONLY:
     # Exercise every program even when one fails, so a matrix run reports all
     # compatibility issues instead of repeatedly stopping at its first tool.
