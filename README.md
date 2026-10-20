@@ -42,7 +42,7 @@ Release 同时提供独立文件，例如 `rg-android-arm64`、`stress-android-a
 
 统一基线为 **Android 10+（API 29）**。`arm64` 对应主流 ARM64 手机；`armv7` 用于 32 位 ARM 设备；`x86_64`、`x86` 用于对应的模拟器或设备。设备必须支持所选 ABI，64 位设备能否运行 32 位程序取决于系统。
 
-程序使用 Android NDK 的 Bionic 静态库，避免携带额外第三方 `.so`。构建检查 ELF 架构、位数和动态依赖，再用各架构 QEMU 运行冒烟测试：HTTPS 证书校验与下载、JSON 和正则、SQL/FTS5、压缩往返、iperf3 TCP 传输、数据中继、离线 pcap 解码及有界压力任务。strace 仅测试启动和版本输出；真实 ptrace 跟踪及设备权限相关功能需要真机验证。
+程序使用 Android NDK 的 Bionic 静态库，避免携带额外第三方 `.so`。构建检查 ELF 架构、位数和动态依赖，再在 Linux x86 主机上直接运行 x86/x86_64 程序，并通过 QEMU 运行 ARM 程序。冒烟测试覆盖 HTTPS 证书校验与下载、JSON 和正则、SQL/FTS5、压缩往返、iperf3 TCP 传输、数据中继、离线 pcap 解码及有界压力任务。strace 仅测试启动和版本输出；真实 ptrace 跟踪及设备权限相关功能需要真机验证。
 
 tcpdump 实时抓包和 strace 跟踪其他进程通常需要额外权限，并受 SELinux 约束。stress-ng 能运行的测试项取决于设备内核、权限和构建时可用功能。普通文件处理和网络客户端无需 root。
 

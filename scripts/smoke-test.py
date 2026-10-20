@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the actual Android programs under architecture-specific QEMU."""
+"""Exercise Android programs natively on x86 or with QEMU on ARM."""
 import json
 import os
 import http.server
@@ -13,6 +13,7 @@ import struct
 import socket
 import time
 import sys
+import platform
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARCH = os.environ.get("ARCH", "arm64")
@@ -20,7 +21,9 @@ CATALOG = json.loads((ROOT / "build-list.json").read_text())
 BIN = ROOT / f"dist/android-{ARCH}/bin"
 target = CATALOG["architectures"][ARCH]["qemu"]
 QEMU = shutil.which(f"qemu-{target}") or shutil.which(f"qemu-{target}-static")
-if not QEMU:
+NATIVE = (ARCH in {"x86", "x86_64"} and platform.system() == "Linux"
+          and platform.machine().lower() in {"x86_64", "amd64"})
+if not NATIVE and not QEMU:
     raise SystemExit(f"Install qemu-user to test {ARCH}")
 
 ONLY = os.environ.get("SMOKE_TOOL")
@@ -50,15 +53,17 @@ def available(name):
 
 
 def command(name, *args):
+    # QEMU's TCP getsockopt translation can truncate strings and TCP_INFO.
+    # A Linux x86_64 runner can execute these static Bionic ELFs directly.
+    if NATIVE:
+        return [str(BIN / name), *args]
     cpu = "cortex-a15" if ARCH == "armv7" else "max"
     return [QEMU, "-cpu", cpu, str(BIN / name), *args]
 
 
 def run(name, *args, input=None, check=True, binary=False):
     result = subprocess.run(command(name, *args), input=input,
-                            text=not binary, capture_output=True, timeout=30,
-                            encoding=None if binary else "utf-8",
-                            errors=None if binary else "backslashreplace")
+                            text=not binary, capture_output=True, timeout=30)
     if check and result.returncode:
         raise RuntimeError(f"{name} failed ({result.returncode}): {result.stderr}")
     return result
@@ -181,7 +186,6 @@ if available("iperf3"):
                 raise RuntimeError("iperf3 server exited: " + str(server.communicate()))
             time.sleep(0.1)
         assert result.returncode == 0, result.stdout + result.stderr
-        print(f"iperf3 JSON: {result.stdout}", flush=True)
         assert json.loads(result.stdout)["end"]["sum_received"]["bytes"] > 0
         server.communicate(timeout=10)
         assert server.returncode == 0

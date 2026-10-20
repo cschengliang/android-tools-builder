@@ -164,7 +164,7 @@ def main():
         notes.write_text(
             f"Android 10+ (API 29) 多架构静态命令行工具。\n\n{versions}\n\n"
             f"由 [GitHub Actions 构建 #{run['run_number']}]({run['html_url']}) 从源码编译，"
-            "并通过各架构 ELF、静态链接及 QEMU 冒烟测试。strace 仅验证启动，设备权限相关功能需另行真机验证。\n\n"
+            "并通过各架构 ELF、静态链接及运行冒烟测试（x86 原生运行、ARM 使用 QEMU）。strace 仅验证启动，设备权限相关功能需另行真机验证。\n\n"
             f"源码提交：`{run['head_sha']}`。\n\n"
             "下载完整工具包可同时获得使用说明和许可证；也可以直接下载单个 "
             "`*-android-架构` 文件。`licenses-android-架构.tar.gz` 提供对应的许可证、源码版本清单和构建规则；需要分发的对应源码也作为独立附件提供。\n\n"

@@ -49,7 +49,7 @@ aria2 excludes SFTP, Metalink, XML-RPC and c-ares asynchronous DNS.
 
 Live packet capture and tracing other processes usually require additional
 privileges and remain subject to SELinux. stress-ng features depend on the device
-kernel and permissions. QEMU smoke tests do not replace native-device testing;
+kernel and permissions. Linux CI smoke tests (native x86, QEMU ARM) do not replace Android device testing;
 strace is tested for startup/version output only, not real ptrace operation.
 
 Verify package contents:

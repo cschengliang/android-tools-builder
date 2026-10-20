@@ -89,7 +89,7 @@ jobs:
             exit 1
           fi
           BUILD_MODE=package bash scripts/build.sh "${tools[@]}"
-      - name: Test actual executables with QEMU
+      - name: Test actual executables
         # 32-bit Bionic mutexes require TIDs <= 65535. A fresh PID namespace
         # keeps QEMU's guest IDs small after the compiler spawned many tasks.
         # Drop back to the runner user so tests retain normal user permissions.
@@ -97,7 +97,7 @@ jobs:
       - name: Generate package checksum and summary
         run: |
           sha256sum "dist/android-${ARCH}-tools.tar.gz" > "dist/android-${ARCH}-tools.tar.gz.sha256"
-          printf '### %s\n\nTools: %s\n\nBuild, ELF and QEMU checks passed.\n' "$ARCH" "$BUILD_TOOLS" >> "$GITHUB_STEP_SUMMARY"
+          printf '### %s\n\nTools: %s\n\nBuild, ELF and executable smoke checks passed.\n' "$ARCH" "$BUILD_TOOLS" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload architecture package
         uses: actions/upload-artifact@v7
         with:
