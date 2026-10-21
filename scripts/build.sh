@@ -307,6 +307,7 @@ build_busybox() {
     python3 "$ROOT/scripts/configure-busybox.py" "$src" record
   )
   cp "$src/LICENSE" "$OUT/licenses/busybox.txt"
+  cp "$ROOT/docs/BUSYBOX.txt" "$OUT/busybox/README.txt"
 }
 
 build_ripgrep() {

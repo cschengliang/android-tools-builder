@@ -1,0 +1,33 @@
+BusyBox 1.38.0 for Android 10+ (API 29)
+
+This build starts with upstream make defconfig (the maximal generic config).
+It produces one statically linked Android/Bionic executable, with no Termux
+installation or companion shared library required.
+
+applets.txt is extracted from the compiled applet table and verified against the
+actual executable's --list output in CI. config.txt is the final .config, also
+embedded via bbconfig. upstream-defconfig.txt retains the initial baseline;
+build.json records the count, explicit exclusion reasons and changed options.
+
+Traditional Unix account/password management is excluded because Android's UID
+model differs. PAM, utmp/wtmp, SunRPC and external SELinux libraries are excluded.
+Bionic remains responsible for Android user/group name and DNS resolution.
+The final config and build report are authoritative for this architecture.
+
+Use ./busybox COMMAND ARGS or ./busybox ash. The standalone ash shell can invoke
+compiled applets directly. This does not replace /system/bin commands.
+Temporary paths default to /data/local/tmp; TMPDIR is respected where supported.
+Shell defaults use /system/bin/sh. For crond use a writable directory with -c;
+for httpd use an explicit document root and port, e.g. -f -p 8080 -h /path/to/www.
+
+BusyBox's internal minimal TLS client does not provide full certificate
+verification; use the separately supplied curl for verified HTTPS downloads.
+
+An included command is not a guarantee of Android kernel support or permissions.
+Mounting, module loading, raw networking, device access and service management
+remain subject to the invoking UID, capabilities, kernel configuration and
+SELinux. Smoke tests exercise shell pipelines, text processing, gzip/tar and a
+local HTTP client/server. They do not replace Android device testing.
+
+BusyBox is GPLv2. Exact upstream source, Android patches and build recipes are
+distributed with the package and Release. See licenses/busybox.txt.

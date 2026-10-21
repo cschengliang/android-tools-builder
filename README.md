@@ -26,12 +26,12 @@
 ✓ 表示纳入 Actions 构建和测试矩阵；成功结果以 Actions 和 Release 为准。所有架构面向 Android 10+（API 29），不要求额外第三方动态库。
 <!-- build-list:end -->
 
-完整的[编译列表和架构对照表](BUILD-LIST.md)由 `build-list.json` 和 `sources.json` 生成。当前默认构建表中的 12 项；`ripgrep` 的命令名是 `rg`，`aria2` 的命令名是 `aria2c`。`stress` 和 `stress-ng` 分别提供经典与扩展压力测试。
+完整的[编译列表和架构对照表](BUILD-LIST.md)由 `build-list.json` 和 `sources.json` 生成。当前默认构建表中的 13 项；`ripgrep` 的命令名是 `rg`，`aria2` 的命令名是 `aria2c`。`stress` 和 `stress-ng` 分别提供经典与扩展压力测试。
 
 ## 构建与下载
 
 1. 进入 **Actions → Build Android tools → Run workflow**。
-2. `tools` 和 `architectures` 默认为 `all`，会构建十二种工具 × 四种架构。
+2. `tools` 和 `architectures` 默认为 `all`，会构建十三种工具 × 四种架构。
 3. 也可填写部分组合，例如 `tools: ripgrep curl`、`architectures: arm64 x86_64`；支持空格或逗号分隔。
 4. 全部选定架构的编译和测试通过后，**Publish Android release** 自动创建正式 Release。
 
@@ -76,6 +76,34 @@ curl 包含 HTTPS、HTTP/2、IPv6、代理、gzip 和内置 Mozilla CA；暂不�
 aria2 包含 HTTP/HTTPS、FTP、BitTorrent 和 JSON-RPC；暂不包含 SFTP、Metalink、XML-RPC 和 c-ares 异步 DNS。HTTPS 下载请显式指定工具包中的证书文件，例如 `aria2c --ca-certificate=/data/local/tmp/tools/cacert.pem https://example.com/file`，私有服务改用自己的 CA；不关闭证书验证。单独下载 aria2c 时，还应下载 Release 附件中的 `cacert.pem`。sqlite3 禁用动态扩展加载；iperf3 不启用可选的 OpenSSL 身份认证。
 
 ## 自动发布
+
+### BusyBox 完整配置
+
+BusyBox 1.38.0 从上游完整通用 `defconfig` 开始适配 Android，保留内置 ash/hush、
+awk、sed、vi、归档、网络及进程工具。它是一份独立静态 bin，不依赖 Termux 安装。
+编译明确关闭不适用于 Android 账户模型的传统账户管理、PAM、utmp/wtmp、SunRPC
+及外部 SELinux 库等功能；最终启用情况以各架构的实际配置和命令清单为准。
+
+只构建 BusyBox 时在 Actions 填入 `tools: busybox`、`architectures: all`。
+Release 的 `busybox-android-架构` 是可执行文件，另附：
+
+- `busybox-applets-android-架构.txt`：与实际 `busybox --list` 一致的命令列表。
+- `busybox-config-android-架构.txt`：实际编译 `.config`，也通过内置 `bbconfig` 提供。
+- `busybox-build-android-架构.json`：命令数量、配置基线和关闭功能的原因。
+
+```sh
+chmod 755 busybox-android-arm64
+./busybox-android-arm64 --list
+./busybox-android-arm64 ash
+./busybox-android-arm64 awk '{print $1}' data.txt
+```
+
+临时目录默认适配 `/data/local/tmp`，需要时设置 `TMPDIR`；守护进程可显式指定
+工作目录、端口和配置。内置 applet 不代表设备内核及权限支持其全部操作。
+BusyBox 的内置简化 TLS 实现不提供完整证书验证；需要验证 HTTPS 证书时使用
+本仓库的 curl。详细构建说明也放在工具包的 `busybox/README.txt` 中。
+
+### 发布流程
 
 发布流程只接受本仓库 `main` 分支上 `build.yml` 的成功构建。每次构建对应 `android-tools-build-构建编号` 标签，并固定到实际构建的源码提交。全部附件上传完后才将草稿转成正式 Release；重复发布同一构建会跳过。
 

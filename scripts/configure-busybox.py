@@ -27,10 +27,8 @@ disabled = {
     'FEATURE_SHADOWPASSWDS': 'Android does not use /etc/shadow authentication.',
     'FEATURE_INETD_RPC': 'Bionic does not provide SunRPC headers/libraries.',
     'FEATURE_NSLOOKUP_BIG': 'Use the Bionic resolver without a separate libresolv.',
-    'FEATURE_MOUNT_MTAB': 'Android mount state is provided by /proc/mounts.',
     'SHA1_HWACCEL': 'Use portable hashes on all four Android ABIs.',
     'SHA256_HWACCEL': 'Use portable hashes on all four Android ABIs.',
-    'LFS': 'Use the NDK ABI file interfaces without glibc LFS redirection.',
     'TIME64': 'Use Bionic time interfaces at API 29.',
     'SH_IS_HUSH': 'Select ash as the sh entry point; hush remains available.',
     'SH_IS_NONE': 'Select ash as the sh entry point.',
@@ -69,7 +67,7 @@ if len(sys.argv) > 2 and sys.argv[2] == 'record':
 config = (source / '.config').read_text()
 (output / 'upstream-defconfig.txt').write_text(config)
 values = {name: 'n' for name in disabled}
-values.update({name: 'y' for name in ('STATIC', 'DESKTOP', 'LONG_OPTS', 'SHOW_USAGE',
+values.update({name: 'y' for name in ('STATIC', 'LFS', 'DESKTOP', 'LONG_OPTS', 'SHOW_USAGE',
     'FEATURE_VERBOSE_USAGE', 'BBCONFIG', 'FEATURE_COMPRESS_BBCONFIG', 'ASH', 'HUSH',
     'SH_IS_ASH', 'BASH_IS_ASH', 'FEATURE_SH_STANDALONE', 'FEATURE_SH_NOFORK',
     'FEATURE_PREFER_APPLETS', 'USE_BB_CRYPT', 'USE_BB_CRYPT_SHA')})

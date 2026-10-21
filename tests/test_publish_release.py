@@ -9,7 +9,7 @@ from release.publish import ELF_TARGETS, prepare_assets, validate_run
 
 
 class ReleaseValidationTests(unittest.TestCase):
-    def make_package(self, work, *, corrupt_member=False, arm64=True, arch="arm64", legacy=False, source_suffixes=()):
+    def make_package(self, work, *, corrupt_member=False, arm64=True, arch="arm64", legacy=False, source_suffixes=(), busybox_metadata=False):
         source = work / "fixture"
         (source / "bin").mkdir(parents=True)
         (source / "licenses").mkdir()
@@ -22,6 +22,11 @@ class ReleaseValidationTests(unittest.TestCase):
         (source / "USAGE.txt").write_text("usage")
         (source / "cacert.pem").write_text("fixture CA")
         (source / "licenses/curl.txt").write_text("fixture license")
+        if busybox_metadata:
+            (source / 'busybox').mkdir()
+            for name, content in {'config.txt': 'CONFIG_STATIC=y\n', 'applets.txt': 'ash\nawk\n',
+                                  'build.json': '{"applet_count":2}\n'}.items():
+                (source / 'busybox' / name).write_text(content)
         for suffix in source_suffixes:
             (source / "sources").mkdir(exist_ok=True)
             (source / "sources" / ("upstream-1.tar." + suffix)).write_bytes(b"fixture source archive")
@@ -61,6 +66,18 @@ class ReleaseValidationTests(unittest.TestCase):
             (download / "android-arm64-tools.tar.gz").write_bytes(b"tampered")
             with self.assertRaisesRegex(ValueError, "package checksum"):
                 prepare_assets(download, work / "assets")
+
+    def test_busybox_config_and_applets_are_preserved_as_release_assets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = pathlib.Path(directory)
+            download = self.make_package(work, busybox_metadata=True)
+            prepare_assets(download, work / 'assets')
+            for name in ('config.txt', 'applets.txt', 'build.json'):
+                stem, extension = name.rsplit('.', 1)
+                self.assertEqual((work / 'assets' / f'busybox-{stem}-android-arm64.{extension}').read_bytes(),
+                                 (work / 'fixture/busybox' / name).read_bytes())
+            with tarfile.open(work / 'assets/licenses-android-arm64.tar.gz') as bundle:
+                self.assertIn('busybox/config.txt', bundle.getnames())
 
     def test_source_archives_preserve_all_compression_formats(self):
         with tempfile.TemporaryDirectory() as directory:

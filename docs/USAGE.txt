@@ -27,6 +27,7 @@ Tools:
   tcpdump Packet capture and offline pcap analysis; static libpcap.
   strace  System call/signal tracing; no libdw unwinding or cross-bitness decoding.
   stress-ng Extended CPU, memory and kernel stress tests; optional libraries omitted.
+  busybox Multi-call Unix toolbox; maximal generic config adapted to Android.
 
 Examples:
   ./rg --version
@@ -59,3 +60,15 @@ licenses/ contains notices and sources.json records source versions and hashes.
 When copyleft tools are included, sources/ contains the corresponding source
 archives, required dependency inputs, and the build scripts used for this build.
 Build rules are available in the source tag attached to the GitHub Release.
+
+BusyBox:
+  ./busybox --list
+  ./busybox ash
+  ./busybox bbconfig
+  ./busybox httpd -f -p 8080 -h /path/to/www
+busybox/ includes the exact config, applet list, build report and notes.
+Android paths default to /data/local/tmp and /system/bin/sh. Traditional Unix
+account management/PAM/utmp/wtmp and external SELinux libraries are excluded;
+see build.json for exact exclusions. Android SELinux enforcement still applies.
+BusyBox's internal minimal TLS implementation does not provide full certificate
+validation; use this repository's curl for verified HTTPS downloads.
