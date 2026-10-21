@@ -13,7 +13,8 @@
     "aria2": {"binary": "aria2c", "description": "多连接下载和任务管理", "features": "HTTP/HTTPS、FTP、BitTorrent、JSON-RPC；需指定 CA 文件；无 SFTP/Metalink", "homepage": "https://github.com/aria2/aria2", "dependencies": ["aria2", "openssl", "zlib", "cacert"], "distribute_sources": true},
     "tcpdump": {"binary": "tcpdump", "description": "网络抓包和 pcap 分析", "features": "内置静态 libpcap；实时抓包需要相应权限", "homepage": "https://www.tcpdump.org/", "dependencies": ["tcpdump", "libpcap"]},
     "strace": {"binary": "strace", "description": "系统调用和信号跟踪", "features": "跟踪受 ptrace/SELinux 限制；无 libdw 栈回溯及跨位数解码", "homepage": "https://strace.io/", "dependencies": ["strace"], "distribute_sources": true},
-    "stress-ng": {"binary": "stress-ng", "description": "CPU、内存及内核压力测试", "features": "静态精简依赖；可用测试项取决于内核和权限", "homepage": "https://github.com/ColinIanKing/stress-ng", "dependencies": ["stress-ng"], "distribute_sources": true}
+    "stress-ng": {"binary": "stress-ng", "description": "CPU、内存及内核压力测试", "features": "静态精简依赖；可用测试项取决于内核和权限", "homepage": "https://github.com/ColinIanKing/stress-ng", "dependencies": ["stress-ng"], "distribute_sources": true},
+    "busybox": {"binary": "busybox", "description": "多命令 Unix 工具箱", "features": "完整通用配置适配 Android；内置 ash、awk、vi、网络和归档工具；附实际命令清单与配置", "homepage": "https://busybox.net/", "dependencies": ["busybox"], "distribute_sources": true}
   },
   "architectures": {
     "arm64": {"abi": "arm64-v8a", "description": "主流 64 位 ARM 手机和平板", "clang": "aarch64-linux-android", "host": "aarch64-linux-android", "openssl": "android-arm64", "rust": "aarch64-linux-android", "qemu": "aarch64", "machine": 183, "elf_class": 2},

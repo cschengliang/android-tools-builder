@@ -21,6 +21,7 @@
 | [tcpdump](https://www.tcpdump.org/) | `tcpdump` | 4.99.7 | 网络抓包和 pcap 分析 | ✓ | ✓ | ✓ | ✓ |
 | [strace](https://strace.io/) | `strace` | 7.2 | 系统调用和信号跟踪 | ✓ | ✓ | ✓ | ✓ |
 | [stress-ng](https://github.com/ColinIanKing/stress-ng) | `stress-ng` | 0.22.01 | CPU、内存及内核压力测试 | ✓ | ✓ | ✓ | ✓ |
+| [busybox](https://busybox.net/) | `busybox` | 1.38.0 | 多命令 Unix 工具箱 | ✓ | ✓ | ✓ | ✓ |
 
 ✓ 表示纳入 Actions 构建和测试矩阵；成功结果以 Actions 和 Release 为准。所有架构面向 Android 10+（API 29），不要求额外第三方动态库。
 <!-- build-list:end -->

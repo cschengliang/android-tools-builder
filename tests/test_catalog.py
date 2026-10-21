@@ -8,7 +8,7 @@ class CatalogTests(unittest.TestCase):
         catalog = load()
         self.assertEqual(set(selection("all", catalog["tools"])), {
             "ripgrep", "stress", "curl", "jq", "iperf3", "zstd", "sqlite3",
-            "socat", "aria2", "tcpdump", "strace", "stress-ng"})
+            "socat", "aria2", "tcpdump", "strace", "stress-ng", "busybox"})
         self.assertEqual({value["abi"] for value in catalog["architectures"].values()},
                          {"arm64-v8a", "armeabi-v7a", "x86_64", "x86"})
         self.assertEqual(selection("ripgrep,curl", catalog["tools"]), ["ripgrep", "curl"])

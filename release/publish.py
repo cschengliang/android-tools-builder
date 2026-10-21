@@ -79,11 +79,16 @@ def prepare_assets(download, output):
         raise ValueError("Build package has no executables")
     # Publish notices alongside the standalone executables as well as in the full package.
     with tarfile.open(output / f"licenses-android-{arch}.tar.gz", "w:gz") as notices:
-        for name in ("licenses", "sources.json", "USAGE.txt", "cacert.pem", "build-info.json", "BUILD-LIST.md", "sources"):
+        for name in ("licenses", "sources.json", "USAGE.txt", "cacert.pem", "build-info.json", "BUILD-LIST.md", "sources", "busybox"):
             if (extracted / name).exists():
                 notices.add(extracted / name, arcname=name)
     for source in (extracted / "sources").glob("*.tar.*"):
         shutil.copyfile(source, output / source.name.replace(".tar.", "-source.tar.", 1))
+    for name in ("config.txt", "applets.txt", "build.json"):
+        metadata = extracted / "busybox" / name
+        if metadata.is_file():
+            stem, extension = name.rsplit('.', 1)
+            shutil.copyfile(metadata, output / f"busybox-{stem}-android-{arch}.{extension}")
     # Standalone aria2 downloads also need an explicit trusted CA file.
     for relative, name in (("cacert.pem", "cacert.pem"), ("licenses/CA-NOTICE.txt", "CA-NOTICE.txt")):
         if (extracted / relative).is_file():

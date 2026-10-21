@@ -16,6 +16,7 @@
 | [tcpdump](https://www.tcpdump.org/) | `tcpdump` | 4.99.7 | 网络抓包和 pcap 分析 | ✓ | ✓ | ✓ | ✓ |
 | [strace](https://strace.io/) | `strace` | 7.2 | 系统调用和信号跟踪 | ✓ | ✓ | ✓ | ✓ |
 | [stress-ng](https://github.com/ColinIanKing/stress-ng) | `stress-ng` | 0.22.01 | CPU、内存及内核压力测试 | ✓ | ✓ | ✓ | ✓ |
+| [busybox](https://busybox.net/) | `busybox` | 1.38.0 | 多命令 Unix 工具箱 | ✓ | ✓ | ✓ | ✓ |
 
 ✓ 表示纳入 Actions 构建和测试矩阵；成功结果以 Actions 和 Release 为准。所有架构面向 Android 10+（API 29），不要求额外第三方动态库。
 
@@ -42,5 +43,6 @@
 - **tcpdump**：内置静态 libpcap；实时抓包需要相应权限。
 - **strace**：跟踪受 ptrace/SELinux 限制；无 libdw 栈回溯及跨位数解码。
 - **stress-ng**：静态精简依赖；可用测试项取决于内核和权限。
+- **busybox**：完整通用配置适配 Android；内置 ash、awk、vi、网络和归档工具；附实际命令清单与配置。
 
 维护清单后执行 `python3 scripts/catalog.py write` 更新表格；Actions 会检查表格与规则一致。实际编译和发布均在 GitHub 运行器上执行。

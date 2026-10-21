@@ -287,6 +287,28 @@ build_stress() {
   cp "$ROOT/.work/downloads/$(basename "$stresssrc").tar.gz" "$OUT/sources/"
 }
 
+build_busybox() {
+  python3 scripts/prepare-sources.py busybox
+  local src="$ROOT/$(source_path busybox)"
+  (
+    cd "$src"
+    for fix in "$ROOT"/patches/busybox/*.patch; do patch -p1 < "$fix"; done
+    local bbarch="$ARCH"
+    [[ $ARCH != armv7 ]] || bbarch=arm
+    [[ $ARCH != x86 ]] || bbarch=i386
+    local -a options=(ARCH="$bbarch" CC="$CC" HOSTCC=gcc AR="$AR" NM="$NM"
+      STRIP="$STRIP" OBJCOPY="$TOOLCHAIN/bin/llvm-objcopy" OBJDUMP="$TOOLCHAIN/bin/llvm-objdump"
+      SKIP_STRIP=y)
+    make "${options[@]}" defconfig
+    python3 "$ROOT/scripts/configure-busybox.py" "$src"
+    make "${options[@]}" oldconfig </dev/null
+    make -k -j"$JOBS" "${options[@]}"
+    install -m 755 busybox_unstripped "$OUT/bin/busybox"
+    python3 "$ROOT/scripts/configure-busybox.py" "$src" record
+  )
+  cp "$src/LICENSE" "$OUT/licenses/busybox.txt"
+}
+
 build_ripgrep() {
   python3 scripts/prepare-sources.py ripgrep
   local rgsrc linker_key builtins
@@ -325,6 +347,7 @@ for tool in "$@"; do
     tcpdump) build_tcpdump ;;
     strace) build_strace ;;
     stress-ng) build_stress_ng ;;
+    busybox) build_busybox ;;
     *) echo "Unknown tool: $tool" >&2; exit 2 ;;
   esac
 done

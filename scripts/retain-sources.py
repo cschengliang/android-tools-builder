@@ -26,3 +26,6 @@ if names:
         shutil.copyfile(root / filename, recipes / filename)
     shutil.copytree(root / "docs", recipes / "docs", dirs_exist_ok=True)
     shutil.copytree(root / "patches", recipes / "patches", dirs_exist_ok=True)
+    metadata = pathlib.Path(sys.argv[1]) / "busybox"
+    if metadata.is_dir():
+        shutil.copytree(metadata, recipes / "busybox-build", dirs_exist_ok=True)

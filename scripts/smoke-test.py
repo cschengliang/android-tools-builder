@@ -14,6 +14,7 @@ import socket
 import time
 import sys
 import platform
+import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARCH = os.environ.get("ARCH", "arm64")
@@ -215,5 +216,52 @@ if available("stress-ng"):
     result = run("stress-ng", "--cpu", "1", "--cpu-method", "sqrt", "--cpu-ops", "10", "--timeout", "5", "--metrics-brief")
     assert "successful run" in result.stdout + result.stderr
     print("PASS: stress-ng bounded CPU workload", flush=True)
+
+if available("busybox"):
+    metadata = BIN.parent / 'busybox'
+    applets = run('busybox', '--list').stdout.splitlines()
+    assert applets == (metadata / 'applets.txt').read_text().splitlines()
+    assert len(applets) >= 300, f'Expected a broad BusyBox build, got {len(applets)} applets'
+    required = {'ash', 'hush', 'awk', 'sed', 'grep', 'xargs', 'find', 'stat', 'tar',
+                'gzip', 'unzip', 'bzip2', 'httpd', 'nc', 'wget', 'crond', 'crontab',
+                'vi', 'less', 'ip', 'nslookup', 'ping', 'timeout', 'sha256sum', 'bbconfig', 'bc'}
+    assert required <= set(applets), sorted(required - set(applets))
+    assert 'CONFIG_STATIC=y' in run('busybox', 'bbconfig').stdout
+    assert run('busybox', 'ash', '-c', 'printf "b\\na\\nb\\n" | sort | uniq | tr a-z A-Z').stdout == 'A\nB\n'
+    assert run('busybox', 'hush', '-c', 'echo $((20 + 22))').stdout == '42\n'
+    assert run('busybox', 'awk', '{total += $1} END {print total}', input='20\n22\n').stdout == '42\n'
+    assert run('busybox', 'sed', 's/Android/Linux/g', input='Android tools\n').stdout == 'Linux tools\n'
+    payload = b'Android BusyBox archive test\n' * 128
+    packed = run('busybox', 'gzip', '-c', input=payload, binary=True).stdout
+    assert run('busybox', 'gzip', '-dc', input=packed, binary=True).stdout == payload
+    with tempfile.TemporaryDirectory(prefix='busybox-smoke-') as temporary:
+        directory = pathlib.Path(temporary)
+        (directory / 'input.txt').write_bytes(payload)
+        run('busybox', 'tar', '-czf', str(directory / 'test.tar.gz'), '-C', temporary, 'input.txt')
+        assert run('busybox', 'tar', '-xOzf', str(directory / 'test.tar.gz'), 'input.txt', binary=True).stdout == payload
+        with socket.socket() as reservation:
+            reservation.bind(('127.0.0.1', 0))
+            port = reservation.getsockname()[1]
+        server = subprocess.Popen(command('busybox', 'httpd', '-f', '-p', f'127.0.0.1:{port}', '-h', temporary),
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            url = f'http://127.0.0.1:{port}/input.txt'
+            for attempt in range(30):
+                try:
+                    with opener.open(url, timeout=3) as response:
+                        assert response.read() == payload
+                    break
+                except OSError:
+                    if server.poll() is not None:
+                        raise RuntimeError(f'BusyBox httpd exited: {server.communicate()!r}')
+                    if attempt == 29:
+                        raise
+                    time.sleep(0.1)
+            assert run('busybox', 'wget', '-qO-', url, binary=True).stdout == payload
+        finally:
+            server.terminate()
+            server.communicate(timeout=10)
+    print(f'PASS: BusyBox {len(applets)} applets, ash/hush, awk/sed, gzip/tar and HTTP server/client', flush=True)
 
 print(f"PASS: {ONLY} smoke-tested on {ARCH}", flush=True)
