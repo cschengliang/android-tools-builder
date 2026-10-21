@@ -1,0 +1,108 @@
+--- a/console-tools/loadfont.c
++++ b/console-tools/loadfont.c
+@@ -57,5 +57,5 @@
+ 
+ #include "libbb.h"
+-#include <sys/kd.h>
++#include <linux/kd.h>
+ 
+ #ifndef KDFONTOP
+--- a/miscutils/conspy.c
++++ b/miscutils/conspy.c
+@@ -42,5 +42,5 @@
+ #include "libbb.h"
+ #include "common_bufsiz.h"
+-#include <sys/kd.h>
++#include <linux/kd.h>
+ 
+ #define ESC "\033"
+--- a/miscutils/adjtimex.c
++++ b/miscutils/adjtimex.c
+@@ -34,9 +34,5 @@
+ 
+ #include "libbb.h"
+-#ifdef __BIONIC__
+-# include <linux/timex.h>
+-#else
+-# include <sys/timex.h>
+-#endif
++#include <sys/timex.h>
+ 
+ static const uint16_t statlist_bit[] ALIGN2 = {
+--- a/util-linux/swaponoff.c
++++ b/util-linux/swaponoff.c
+@@ -76,7 +76,5 @@
+ #include "common_bufsiz.h"
+ #include <mntent.h>
+-#ifndef __BIONIC__
+-# include <sys/swap.h>
+-#endif
++#include <sys/swap.h>
+ 
+ #if ENABLE_FEATURE_SWAPONOFF_LABEL
+--- a/util-linux/ipcs.c
++++ b/util-linux/ipcs.c
+@@ -72,5 +72,5 @@
+    X/OPEN tells us to define it ourselves, but until recently
+    Linux include files would also define it. */
+-#if defined(__GNU_LIBRARY__) && !defined(_SEM_SEMUN_UNDEFINED)
++#if defined(__ANDROID__) || (defined(__GNU_LIBRARY__) && !defined(_SEM_SEMUN_UNDEFINED))
+ /* union semun is defined by including <sys/sem.h> */
+ #else
+--- a/util-linux/ipcrm.c
++++ b/util-linux/ipcrm.c
+@@ -29,5 +29,5 @@
+ #include <sys/sem.h>
+ 
+-#if defined(__GNU_LIBRARY__) && !defined(_SEM_SEMUN_UNDEFINED)
++#if defined(__ANDROID__) || (defined(__GNU_LIBRARY__) && !defined(_SEM_SEMUN_UNDEFINED))
+ /* union semun is defined by including <sys/sem.h> */
+ #else
+--- a/include/platform.h
++++ b/include/platform.h
+@@ -557,4 +557,5 @@
+ # undef HAVE_NET_ETHERNET_H
+ # undef HAVE_PRINTF_PERCENTM
++# undef HAVE_SETBIT
+ #endif
+ 
+--- a/networking/ether-wake.c
++++ b/networking/ether-wake.c
+@@ -131,5 +131,6 @@
+ 	if (eap) {
+ 		bb_debug_msg("The target station address is %s\n\n", ether_ntoa(eap));
+-#if !defined(__UCLIBC__) || UCLIBC_VERSION >= KERNEL_VERSION(0, 9, 30)
++/* Bionic has no /etc/ethers hostname lookup. Literal MAC addresses work. */
++#if !defined(__ANDROID__) && (!defined(__UCLIBC__) || UCLIBC_VERSION >= KERNEL_VERSION(0, 9, 30))
+ 	} else if (ether_hostton(hostid, eaddr) == 0) {
+ 		bb_debug_msg("Station address for hostname %s is %s\n\n", hostid, ether_ntoa(eaddr));
+--- a/include/libbb.h
++++ b/include/libbb.h
+@@ -67,4 +67,14 @@
+ # define endpwent() ((void)0)
+ # define endgrent() ((void)0)
++/* Bionic at API 29 has no GNU sigisemptyset(). Ignore unused padding. */
++static inline int bb_android_sigisemptyset(const sigset_t *set)
++{
++    int signal_number;
++    for (signal_number = 1; signal_number < NSIG; signal_number++)
++        if (sigismember(set, signal_number) == 1)
++            return 0;
++    return 1;
++}
++# define sigisemptyset bb_android_sigisemptyset
+ #endif
+ #ifdef HAVE_MNTENT_H
+--- a/Makefile.flags
++++ b/Makefile.flags
+@@ -187,8 +187,8 @@
+ ifeq ($(CONFIG_FEATURE_NSLOOKUP_BIG),y)
+ ifneq (,$(findstring linux,$(shell $(CC) $(CFLAGS) -dumpmachine)))
+-LDLIBS += resolv
++# Android: resolver functions are provided by Bionic libc.
+ endif
+ ifneq (,$(findstring gnu,$(shell $(CC) $(CFLAGS) -dumpmachine)))
+-LDLIBS += resolv
++# Android: resolver functions are provided by Bionic libc.
+ endif
+ endif

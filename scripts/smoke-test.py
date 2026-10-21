@@ -234,9 +234,32 @@ if available("busybox"):
     payload = b'Android BusyBox archive test\n' * 128
     packed = run('busybox', 'gzip', '-c', input=payload, binary=True).stdout
     assert run('busybox', 'gzip', '-dc', input=packed, binary=True).stdout == payload
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as dns:
+        dns.bind(('127.0.0.1', 0))
+        dns.settimeout(5)
+        dns_port = dns.getsockname()[1]
+        def answer_dns():
+            query, peer = dns.recvfrom(4096)
+            end = 12
+            while query[end]:
+                end += query[end] + 1
+            question = query[12:end + 5]
+            response = (query[:2] + struct.pack('!HHHHH', 0x8180, 1, 1, 0, 0)
+                        + question + b'\xc0\x0c' + struct.pack('!HHIH', 1, 1, 60, 4)
+                        + socket.inet_aton('192.0.2.123'))
+            dns.sendto(response, peer)
+        responder = threading.Thread(target=answer_dns, daemon=True)
+        responder.start()
+        result = run('busybox', 'nslookup', '-type=A', f'-port={dns_port}', 'fixture.test', '127.0.0.1')
+        responder.join(timeout=5)
+        assert '192.0.2.123' in result.stdout, result.stdout + result.stderr
     with tempfile.TemporaryDirectory(prefix='busybox-smoke-') as temporary:
         directory = pathlib.Path(temporary)
         (directory / 'input.txt').write_bytes(payload)
+        large_size = 5 * 1024**3 + 17
+        with (directory / 'large-sparse-file').open('wb') as sparse:
+            sparse.truncate(large_size)
+        assert run('busybox', 'stat', '-c', '%s', str(directory / 'large-sparse-file')).stdout.strip() == str(large_size)
         run('busybox', 'tar', '-czf', str(directory / 'test.tar.gz'), '-C', temporary, 'input.txt')
         assert run('busybox', 'tar', '-xOzf', str(directory / 'test.tar.gz'), 'input.txt', binary=True).stdout == payload
         with socket.socket() as reservation:

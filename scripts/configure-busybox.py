@@ -26,7 +26,7 @@ disabled = {
     'USE_BB_SHADOW': 'Android does not use /etc/shadow authentication.',
     'FEATURE_SHADOWPASSWDS': 'Android does not use /etc/shadow authentication.',
     'FEATURE_INETD_RPC': 'Bionic does not provide SunRPC headers/libraries.',
-    'FEATURE_NSLOOKUP_BIG': 'Use the Bionic resolver without a separate libresolv.',
+    'HOSTID': 'Bionic has no gethostid API or Unix hostid file.',
     'SHA1_HWACCEL': 'Use portable hashes on all four Android ABIs.',
     'SHA256_HWACCEL': 'Use portable hashes on all four Android ABIs.',
     'TIME64': 'Use Bionic time interfaces at API 29.',
@@ -70,10 +70,10 @@ values = {name: 'n' for name in disabled}
 values.update({name: 'y' for name in ('STATIC', 'LFS', 'DESKTOP', 'LONG_OPTS', 'SHOW_USAGE',
     'FEATURE_VERBOSE_USAGE', 'BBCONFIG', 'FEATURE_COMPRESS_BBCONFIG', 'ASH', 'HUSH',
     'SH_IS_ASH', 'BASH_IS_ASH', 'FEATURE_SH_STANDALONE', 'FEATURE_SH_NOFORK',
-    'FEATURE_PREFER_APPLETS', 'USE_BB_CRYPT', 'USE_BB_CRYPT_SHA')})
+    'FEATURE_PREFER_APPLETS', 'USE_BB_CRYPT', 'USE_BB_CRYPT_SHA', 'FEATURE_NSLOOKUP_BIG')})
 values.update({'EXTRA_CFLAGS': json.dumps(os.environ['CFLAGS'] + ' -Wno-ignored-optimization-argument'),
                'EXTRA_LDFLAGS': json.dumps(os.environ['LDFLAGS']),
-               'EXTRA_LDLIBS': '"dl m log"', 'CROSS_COMPILER_PREFIX': '""', 'SYSROOT': '""',
+               'EXTRA_LDLIBS': '"dl m"', 'CROSS_COMPILER_PREFIX': '""', 'SYSROOT': '""',
                'PID_FILE_PATH': '"/data/local/tmp"',
                'FEATURE_CROND_DIR': '"/data/local/tmp/cron"'})
 for name, value in values.items():
@@ -102,5 +102,3 @@ for function in ('getsid', 'sethostname', 'adjtimex'):
     text, count = re.subn(r'\b(?:pid_t|int) ' + function + r'\([^)]*\)\n\{.*?\n\}', '', text, flags=re.S)
     assert count == 1, function
 missing.write_text(text)
-# The large nslookup applet normally asks GNU/Linux for a separate libresolv.
-# The selected smaller applet uses Android's resolver instead.

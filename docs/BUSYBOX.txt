@@ -11,7 +11,10 @@ build.json records the count, explicit exclusion reasons and changed options.
 
 Traditional Unix account/password management is excluded because Android's UID
 model differs. PAM, utmp/wtmp, SunRPC and external SELinux libraries are excluded.
-Bionic remains responsible for Android user/group name and DNS resolution.
+Bionic remains responsible for Android user/group names and ordinary hostname
+resolution. nslookup uses BusyBox's full internal query engine. On Android,
+specify a DNS server explicitly, e.g. ./busybox nslookup example.com 1.1.1.1,
+because the traditional /etc/resolv.conf normally is not supplied by Android.
 The final config and build report are authoritative for this architecture.
 
 Use ./busybox COMMAND ARGS or ./busybox ash. The standalone ash shell can invoke

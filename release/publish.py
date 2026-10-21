@@ -166,16 +166,35 @@ def main():
             if len(pinned) != 1:
                 raise ValueError(f"Inconsistent tool versions: {name}")
             versions += f"| {name} | {pinned.pop()} | " + " | ".join("✓" if name in matrix[arch] else "—" for arch in arches) + " |\n"
+        details = ''
+        if 'busybox' in tool_names:
+            details += '\nBusyBox 实际命令数量：\n\n| 架构 | 命令数 |\n| --- | --- |\n'
+            for arch in arches:
+                if 'busybox' in matrix[arch]:
+                    metadata = json.loads((published / f'busybox-build-android-{arch}.json').read_text())
+                    details += f"| {arch} | {metadata['applet_count']} |\n"
+            details += ('\n每个架构另附 `busybox-applets-android-架构.txt`、'
+                        '`busybox-config-android-架构.txt` 和 `busybox-build-android-架构.json`。'
+                        '完整通用配置已按 Android 调整，具体关闭项及原因见配置报告。\n\n')
+        if 'strace' in tool_names:
+            details += 'strace 仅验证启动，设备权限相关功能需另行真机验证。\n\n'
+        if 'aria2' in tool_names:
+            details += 'aria2 的 HTTPS 下载请指定本 Release 的 CA 文件：`aria2c --ca-certificate=/路径/cacert.pem https://example.com/file`。\n\n'
+        sample_arch = arches[0]
+        sample = 'busybox' if 'busybox' in tool_names else ('curl' if 'curl' in tool_names else tool_names[0])
+        sample = {'ripgrep': 'rg', 'aria2': 'aria2c'}.get(sample, sample)
+        example = f'{sample}-android-{sample_arch}'
+        example_option = '--list' if sample == 'busybox' else '--help'
         notes.write_text(
             f"Android 10+ (API 29) 多架构静态命令行工具。\n\n{versions}\n\n"
             f"由 [GitHub Actions 构建 #{run['run_number']}]({run['html_url']}) 从源码编译，"
-            "并通过各架构 ELF、静态链接及运行冒烟测试（x86 原生运行、ARM 使用 QEMU）。strace 仅验证启动，设备权限相关功能需另行真机验证。\n\n"
+            "并通过各架构 ELF、静态链接及运行冒烟测试（x86 原生运行、ARM 使用 QEMU）。\n\n"
             f"源码提交：`{run['head_sha']}`。\n\n"
             "下载完整工具包可同时获得使用说明和许可证；也可以直接下载单个 "
             "`*-android-架构` 文件。`licenses-android-架构.tar.gz` 提供对应的许可证、源码版本清单和构建规则；需要分发的对应源码也作为独立附件提供。\n\n"
-            "aria2 的 HTTPS 下载请指定本 Release 的 CA 文件：`aria2c --ca-certificate=/路径/cacert.pem https://example.com/file`。\n\n"
+            f"{details}"
             "复制到 Android 有执行权限的目录后：\n\n"
-            "```sh\nchmod 755 curl-android-arm64\n./curl-android-arm64 --version\n```\n\n"
+            f"```sh\nchmod 755 {example}\n./{example} {example_option}\n```\n\n"
             "用 `sha256sum -c SHA256SUMS` 校验全部附件，或使用工具包对应的 `.sha256` 文件。\n",
             encoding="utf-8")
         if existing:

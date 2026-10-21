@@ -24,3 +24,10 @@ adapts Android paths and static linking, removes already-provided Bionic syscall
 wrappers, and records all explicit configuration exclusions and the final config.
 The final applet list is extracted from the generated applet table and compared
 with the executable's actual `--list` output in CI.
+
+`0011-kernel-6.8-tc.patch` also comes from that Termux revision; HTML entities in
+its quoted context have been decoded to match the upstream C source.
+`0100-android-api29.patch` uses modern Bionic timex/swap headers, kernel KD
+definitions, Bionic's existing semun, BusyBox bit helpers, a portable signal-set
+emptiness test for hush, and resolver APIs already supplied by libc. ether-wake
+retains literal MAC input; Bionic does not provide /etc/ethers hostname lookup.
